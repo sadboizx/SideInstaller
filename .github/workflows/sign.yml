@@ -1,0 +1,244 @@
+# .github/workflows/sign.yml
+#
+# "Sign Feather IPA" — được website gọi mỗi khi user bấm Install trên một
+# certificate (Worker gọi POST /api/sign → workflow_dispatch với input `cert`).
+#
+# Vì sao dùng GitHub Actions? zsign là native binary, KHÔNG chạy được trên
+# Cloudflare Workers, nên việc sign diễn ra ở đây trên Ubuntu runner:
+#   1. Validate certificate (phải có trong public/certificates/index.json)
+#   2. Build zsign từ source (https://github.com/zhlynn/zsign)
+#   3. Sign public/feather/Feather.ipa bằng .p12 + .mobileprovision của cert
+#      → Feather-signed.ipa
+#   4. Upload IPA đã sign lên GitHub Release (tag feather-signed-<cert>)
+#   5. Sinh public/output/feather-<cert>.plist (OTA manifest), key `url`
+#      trỏ vào release asset
+#   6. Commit plist → Worker auto-redeploy → manifest lên sóng tại
+#      https://<site>/output/feather-<cert>.plist
+#
+# Repository secrets cần thiết (Settings → Secrets and variables → Actions):
+#   P12_PASSWORDS (không bắt buộc) — JSON map tên folder cert → mật khẩu .p12,
+#     ví dụ: {"China Telecom Corporation Limited": "mat-khau-p12"}
+#     Cert nào p12 không có mật khẩu thì không cần khai báo.
+
+name: Sign Feather IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      cert:
+        description: "Certificate folder name under public/certificates/"
+        required: true
+        type: string
+
+# Website poll runs API và match tên này với certificate.
+run-name: "sign :: ${{ inputs.cert }}"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sign-${{ inputs.cert }}
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate certificate and resolve inputs
+        id: prep
+        env:
+          CERT_INPUT: ${{ inputs.cert }}
+          P12_PASSWORDS: ${{ secrets.P12_PASSWORDS }}
+        run: |
+          python3 - <<'PYEOF'
+          import glob, json, os, sys
+
+          cert = os.environ.get("CERT_INPUT", "").strip()
+          index = json.load(open("public/certificates/index.json"))
+          if cert not in index:
+              print(f"::error::Certificate '{cert}' is not listed in public/certificates/index.json")
+              sys.exit(1)
+
+          cert_dir = os.path.join("public/certificates", cert)
+          p12s = sorted(glob.glob(os.path.join(cert_dir, "*.p12")))
+          provs = sorted(glob.glob(os.path.join(cert_dir, "*.mobileprovision")))
+          if not p12s:
+              print(f"::error::No .p12 file found in {cert_dir}")
+              sys.exit(1)
+          if not provs:
+              print(f"::error::No .mobileprovision file found in {cert_dir}")
+              sys.exit(1)
+
+          raw = os.environ.get("P12_PASSWORDS") or "{}"
+          try:
+              pw_map = json.loads(raw)
+          except Exception as exc:
+              print(f"::error::P12_PASSWORDS secret is not valid JSON: {exc}")
+              sys.exit(1)
+          password = pw_map.get(cert, "") or ""
+          if password:
+              print(f"::add-mask::{password}")  # không để mật khẩu lọt vào log
+
+          safe = "".join(ch if (ch.isalnum() or ch in "._-") else "-" for ch in cert.replace(" ", "-"))
+          safe = "-".join(filter(None, safe.split("-"))) or "cert"
+
+          outputs = {
+              "cert": cert,
+              "safe": safe,
+              "p12": p12s[0],
+              "mobileprovision": provs[0],
+              "tag": f"feather-signed-{safe}",
+              "asset": f"Feather-{safe}.ipa",
+              "plist": f"public/output/feather-{safe}.plist",
+          }
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              for k, v in outputs.items():
+                  f.write(f"{k}={v}\n")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              f.write(f"P12_PASS={password}\n")
+          print(f"certificate='{cert}' safe='{safe}' p12='{p12s[0]}'")
+          PYEOF
+
+      - name: Build zsign from source
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq git g++ pkg-config libssl-dev
+          git clone --depth 1 https://github.com/zhlynn/zsign.git zsign-src
+          cd zsign-src/build/linux
+          make clean && make -j"$(nproc)"
+          ./zsign -v || ./zsign -h
+          echo "ZSIGN_BIN=$PWD/zsign" >> "$GITHUB_ENV"
+
+      - name: Sign Feather.ipa with zsign
+        run: |
+          set -euo pipefail
+          args=(-k "${{ steps.prep.outputs.p12 }}" -m "${{ steps.prep.outputs.mobileprovision }}" -o Feather-signed.ipa)
+          if [ -n "${P12_PASS:-}" ]; then
+            args+=(-p "$P12_PASS")
+          fi
+          args+=(public/feather/Feather.ipa)
+          "$ZSIGN_BIN" "${args[@]}"
+          ls -lh Feather-signed.ipa
+
+      - name: Read bundle info from signed IPA
+        id: bundle
+        run: |
+          python3 - <<'PYEOF'
+          import os, plistlib, zipfile
+          with zipfile.ZipFile("Feather-signed.ipa") as z:
+              info_name = next(
+                  n for n in z.namelist()
+                  if n.startswith("Payload/") and n.count("/") == 2 and n.endswith(".app/Info.plist")
+              )
+              info = plistlib.loads(z.read(info_name))
+          bid = info["CFBundleIdentifier"]
+          ver = str(info.get("CFBundleShortVersionString") or info.get("CFBundleVersion") or "1.0")
+          title = str(info.get("CFBundleDisplayName") or info.get("CFBundleName") or "Feather")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"bundle_id={bid}\n")
+              f.write(f"bundle_version={ver}\n")
+              f.write(f"title={title}\n")
+          print(f"bundle_id={bid} version={ver} title={title}")
+          PYEOF
+
+      - name: Publish signed IPA to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.prep.outputs.tag }}"
+          ASSET="${{ steps.prep.outputs.asset }}"
+          cp Feather-signed.ipa "$ASSET"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "Feather (signed) — ${{ steps.prep.outputs.cert }}" \
+              --notes "Feather.ipa automatically signed with the **${{ steps.prep.outputs.cert }}** certificate by the \"Sign Feather IPA\" workflow. The website installs it via the matching OTA manifest in public/output/. Do not delete this release while the certificate is in use."
+          fi
+          gh release upload "$TAG" "$ASSET" --clobber
+          echo "Released: $(gh release view "$TAG" --json url -q .url)"
+
+      - name: Generate OTA install manifest (plist)
+        env:
+          REPO_FULL: ${{ github.repository }}
+        run: |
+          python3 - <<'PYEOF'
+          import os
+          repo = os.environ["REPO_FULL"]
+          tag = "${{ steps.prep.outputs.tag }}"
+          asset = "${{ steps.prep.outputs.asset }}"
+          plist_path = "${{ steps.prep.outputs.plist }}"
+          bundle_id = "${{ steps.bundle.outputs.bundle_id }}"
+          bundle_version = "${{ steps.bundle.outputs.bundle_version }}"
+          title = "${{ steps.bundle.outputs.title }}"
+          ipa_url = f"https://github.com/{repo}/releases/download/{tag}/{asset}"
+
+          def esc(s):
+              return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+          lines = [
+          '<?xml version="1.0" encoding="UTF-8"?>',
+          '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+          '<plist version="1.0">',
+          '<dict>',
+          '  <key>items</key>',
+          '  <array>',
+          '    <dict>',
+          '      <key>assets</key>',
+          '      <array>',
+          '        <dict>',
+          '          <key>kind</key>',
+          '          <string>software-package</string>',
+          '          <key>url</key>',
+          '          <string>' + esc(ipa_url) + '</string>',
+          '        </dict>',
+          '      </array>',
+          '      <key>metadata</key>',
+          '      <dict>',
+          '        <key>bundle-identifier</key>',
+          '        <string>' + esc(bundle_id) + '</string>',
+          '        <key>bundle-version</key>',
+          '        <string>' + esc(bundle_version) + '</string>',
+          '        <key>kind</key>',
+          '        <string>software</string>',
+          '        <key>title</key>',
+          '        <string>' + esc(title) + '</string>',
+          '      </dict>',
+          '    </dict>',
+          '  </array>',
+          '</dict>',
+          '</plist>',
+          ]
+          os.makedirs(os.path.dirname(plist_path), exist_ok=True)
+          with open(plist_path, "w", encoding="utf-8") as f:
+              f.write("\n".join(lines) + "\n")
+          print(f"wrote {plist_path} -> {ipa_url}")
+          PYEOF
+
+      - name: Commit OTA manifest
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${{ steps.prep.outputs.plist }}"
+          if git diff --cached --quiet; then
+            echo "manifest unchanged, nothing to commit"
+          else
+            git commit -m "chore: signed Feather manifest for ${{ steps.prep.outputs.cert }}"
+            git push
+          fi
+
+      - name: Summary
+        run: |
+          {
+            echo "### Feather.ipa signed"
+            echo ""
+            echo "- Certificate: \`${{ steps.prep.outputs.cert }}\`"
+            echo "- Release tag: \`${{ steps.prep.outputs.tag }}\`"
+            echo "- Manifest: \`${{ steps.prep.outputs.plist }}\`"
+            echo "- Bundle ID: \`${{ steps.bundle.outputs.bundle_id }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
