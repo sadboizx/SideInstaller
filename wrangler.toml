@@ -1,0 +1,29 @@
+name = "sideinstaller"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# Static assets (HTML, CSS-in-HTML, JS-in-HTML, PNG, mobileconfig, plists)
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# Not found → fall through to Worker (optional)
+not_found_handling = "none"
+
+# ---- Sign flow configuration ----
+# GH_REPO: "owner/name" of the GitHub repo hosting this site.
+#   Used by POST /api/sign and GET /api/sign-status to dispatch and poll the
+#   "Sign Feather IPA" workflow (.github/workflows/sign.yml).
+# GH_REF: git ref the workflow is dispatched on (usually the default branch).
+# GH_WORKFLOW: workflow file name.
+[vars]
+GH_REPO = "sadboizx/SideInstaller"
+GH_REF = "main"
+GH_WORKFLOW = "sign.yml"
+
+# Secrets — set via the Cloudflare dashboard
+# (Workers & Pages → sideinstaller → Settings → Variables and Secrets → Add secret).
+# Never commit these.
+#   GITHUB_TOKEN — fine-grained personal access token for GH_REPO with:
+#     Actions: Read and write (dispatch the workflow + read run status)
+#     Contents: Read and write (read releases)
+#     Metadata: Read-only (automatic)
