@@ -109,10 +109,12 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq git g++ pkg-config libssl-dev
           git clone --depth 1 https://github.com/zhlynn/zsign.git zsign-src
-          cd zsign-src/build/linux
-          make clean && make -j"$(nproc)"
-          ./zsign -v || ./zsign -h
-          echo "ZSIGN_BIN=$PWD/zsign" >> "$GITHUB_ENV"
+          make -C zsign-src/build/linux clean
+          make -C zsign-src/build/linux -j"$(nproc)"
+          # NOTE: Makefile của zsign output binary ra zsign-src/bin/zsign,
+          # KHÔNG phải zsign-src/build/linux/zsign
+          ./zsign-src/bin/zsign -v
+          echo "ZSIGN_BIN=$PWD/zsign-src/bin/zsign" >> "$GITHUB_ENV"
 
       - name: Sign Feather.ipa with zsign
         run: |
