@@ -5,27 +5,28 @@
  * - Dynamic /api/certs endpoint:
  *     Reads public/certificates/index.json (list of folder names)
  *     Fetches each folder's .mobileprovision, parses ExpirationDate etc.
- *     Returns JSON array used by index.html to render cert-cards
+ *     Returns JSON array used by index.html for the certificate picker
  * - Dynamic POST /api/sign endpoint:
- *     Body: { "cert": "<folder name from certificates/index.json>" }
- *     Validates the certificate, then dispatches the "Sign Feather IPA"
- *     GitHub Actions workflow (.github/workflows/sign.yml) via the GitHub API.
+ *     Body: { "cert": "<folder name from certificates/index.json>",
+ *             "ipa": "<app id from public/ipas.json>" }
+ *     Validates both, then dispatches the "Sign IPA" GitHub Actions workflow
+ *     (.github/workflows/sign.yml) via the GitHub API.
  *     zsign cannot run on Workers, so signing happens on a GitHub-hosted
  *     Ubuntu runner; the Worker only dispatches the job and polls its status.
  *     Deduplicates: reuses an already-running job, or reuses the last
  *     successful signed build instead of starting a new run.
- * - Dynamic GET /api/sign-status?cert=<folder> endpoint:
- *     Polls the newest workflow run for that certificate and reports:
+ * - Dynamic GET /api/sign-status?cert=<folder>&ipa=<app id> endpoint:
+ *     Polls the newest workflow run for that certificate + app pair and reports:
  *       not_started | running | finishing | complete | failed
  *     On "complete" it returns the OTA manifest URL (plistUrl), which the
  *     page opens via itms-services:// automatically.
  *
  * Full flow (also described in the UI, "How to install"):
- *   1. User taps Install on a certificate card → POST /api/sign {cert}
- *   2. Worker dispatches the workflow → workflow builds zsign, signs
- *      public/feather/Feather.ipa with the cert's .p12 + .mobileprovision,
- *      uploads the signed IPA to a GitHub Release, generates
- *      public/output/feather-<cert>.plist and commits it.
+ *   1. User picks a certificate, taps Sign on an app → POST /api/sign {cert, ipa}
+ *   2. Worker dispatches the workflow → workflow builds zsign, resolves the
+ *      app's IPA (from the repo, or downloads it for remote sources), signs it
+ *      with the cert's .p12 + .mobileprovision, uploads the signed IPA to a
+ *      GitHub Release, generates public/output/<ipa>-<cert>.plist and commits it.
  *   3. The page polls GET /api/sign-status until the run succeeds and the
  *      manifest is live, then opens
  *      itms-services://?action=download-manifest&url=<manifest>.
@@ -35,8 +36,13 @@
  *   2. Put  .mobileprovision  and  .p12  inside
  *   3. Add "My Cert Name" to public/certificates/index.json
  *   4. (Optional) add its .p12 password to the P12_PASSWORDS repo secret
- *   5. Deploy → /api/certs automatically picks it up, and /api/sign can
- *      sign with it immediately.
+ *   5. Deploy → the certificate picker automatically picks it up
+ *
+ * How to add a new signable app:
+ *   1. Add an entry to public/ipas.json (id, name, version, bundleId, icon,
+ *      source — either "path/inside/public/x.ipa" or an https:// URL)
+ *   2. Put the icon in public/Resources/AppIcons/
+ *   3. Deploy → the app appears in the Installation list
  */
 
 const MIME = {
@@ -151,16 +157,16 @@ function safeSlug(name) {
   return s || "cert";
 }
 
-function plistPathFor(cert) {
-  return `/output/feather-${safeSlug(cert)}.plist`;
+function plistPathFor(ipa, cert) {
+  return `/output/${ipa}-${safeSlug(cert)}.plist`;
 }
 
-function releaseTagFor(cert) {
-  return `feather-signed-${safeSlug(cert)}`;
+function releaseTagFor(ipa, cert) {
+  return `${ipa}-signed-${safeSlug(cert)}`;
 }
 
-function releaseAssetNameFor(cert) {
-  return `Feather-${safeSlug(cert)}.ipa`;
+function releaseAssetNameFor(ipa, cert) {
+  return `${ipa}-${safeSlug(cert)}.ipa`;
 }
 
 function ghHeaders(env) {
@@ -201,15 +207,28 @@ async function getIndexFolders(env) {
   }
 }
 
-/** Newest workflow_dispatch run of the sign workflow whose run-name matches the cert */
-async function latestRunForCert(env, cert) {
+/** Signable apps, from public/ipas.json (single source of truth) */
+async function getIpas(env) {
+  const r = await fetchAsset(env, "/ipas.json");
+  if (!r) return null;
+  try {
+    const j = await r.json();
+    if (!Array.isArray(j)) return null;
+    return j.filter((x) => x && typeof x.id === "string" && x.id.trim());
+  } catch {
+    return null;
+  }
+}
+
+/** Newest workflow_dispatch run of the sign workflow for a cert + app pair */
+async function latestRunForCert(env, cert, ipa) {
   const workflow = env.GH_WORKFLOW || "sign.yml";
   const data = await gh(
     env,
     `/actions/workflows/${encodeURIComponent(workflow)}/runs?event=workflow_dispatch&per_page=30`
   );
   const runs = (data && data.workflow_runs) || [];
-  const want = RUN_NAME_PREFIX + cert;
+  const want = `${RUN_NAME_PREFIX}${cert} :: ${ipa}`;
   return runs.find((r) => r.name === want) || null;
 }
 
@@ -248,9 +267,9 @@ function runAgeMs(run) {
 }
 
 /**
- * POST /api/sign  { cert }
- * Validates the certificate against certificates/index.json, then either
- * reuses an in-flight/successful job or dispatches a fresh workflow run.
+ * POST /api/sign  { cert, ipa }
+ * Validates the certificate and the app, then either reuses an
+ * in-flight/successful job or dispatches a fresh workflow run.
  */
 async function handleSign(request, env) {
   let body;
@@ -260,15 +279,20 @@ async function handleSign(request, env) {
     return json({ error: "Invalid JSON body" }, 400);
   }
   const cert = body && typeof body.cert === "string" ? body.cert.trim() : "";
+  const ipa = body && typeof body.ipa === "string" ? body.ipa.trim() : "";
+
   const folders = await getIndexFolders(env);
   if (!folders) return json({ error: "certificates/index.json not found" }, 500);
+  const ipas = await getIpas(env);
+  if (!ipas) return json({ error: "ipas.json not found" }, 500);
   if (!cert || !folders.includes(cert)) return json({ error: "Unknown certificate" }, 400);
+  if (!ipa || !ipas.some((x) => x.id === ipa)) return json({ error: "Unknown app" }, 400);
 
   const workflow = env.GH_WORKFLOW || "sign.yml";
   const ref = env.GH_REF || "main";
-  const tag = releaseTagFor(cert);
-  const assetName = releaseAssetNameFor(cert);
-  const plistPath = plistPathFor(cert);
+  const tag = releaseTagFor(ipa, cert);
+  const assetName = releaseAssetNameFor(ipa, cert);
+  const plistPath = plistPathFor(ipa, cert);
 
   const alreadyComplete = async () => {
     const asset = await releaseAsset(env, tag, assetName);
@@ -283,7 +307,7 @@ async function handleSign(request, env) {
   };
 
   try {
-    const run = await latestRunForCert(env, cert);
+    const run = await latestRunForCert(env, cert, ipa);
 
     if (run && (run.status === "queued" || run.status === "in_progress")) {
       if (runAgeMs(run) < STALE_AFTER_MS) {
@@ -303,7 +327,7 @@ async function handleSign(request, env) {
     await gh(env, `/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ref, inputs: { cert } }),
+      body: JSON.stringify({ ref, inputs: { cert, ipa } }),
     });
     return json({ state: "started" });
   } catch (e) {
@@ -312,24 +336,29 @@ async function handleSign(request, env) {
 }
 
 /**
- * GET /api/sign-status?cert=<folder>
- * Reports the sign job state for a certificate. "complete" is only returned
- * once the OTA manifest is actually reachable (the workflow commits it, then
- * the Worker redeploys).
+ * GET /api/sign-status?cert=<folder>&ipa=<app id>
+ * Reports the sign job state for a certificate + app pair. "complete" is only
+ * returned once the OTA manifest is actually reachable (the workflow commits
+ * it, then the Worker redeploys).
  */
 async function handleSignStatus(request, env) {
   const url = new URL(request.url);
   const cert = (url.searchParams.get("cert") || "").trim();
+  const ipa = (url.searchParams.get("ipa") || "").trim();
+
   const folders = await getIndexFolders(env);
   if (!folders) return json({ error: "certificates/index.json not found" }, 500);
+  const ipas = await getIpas(env);
+  if (!ipas) return json({ error: "ipas.json not found" }, 500);
   if (!cert || !folders.includes(cert)) return json({ error: "Unknown certificate" }, 400);
+  if (!ipa || !ipas.some((x) => x.id === ipa)) return json({ error: "Unknown app" }, 400);
 
-  const tag = releaseTagFor(cert);
-  const assetName = releaseAssetNameFor(cert);
-  const plistPath = plistPathFor(cert);
+  const tag = releaseTagFor(ipa, cert);
+  const assetName = releaseAssetNameFor(ipa, cert);
+  const plistPath = plistPathFor(ipa, cert);
 
   try {
-    const run = await latestRunForCert(env, cert);
+    const run = await latestRunForCert(env, cert, ipa);
     if (!run) return json({ state: "not_started" });
 
     if (run.status === "queued" || run.status === "in_progress") {
@@ -544,7 +573,7 @@ export default {
       });
     }
 
-    // Sign flow: dispatch + poll the "Sign Feather IPA" GitHub Actions workflow
+    // Sign flow: dispatch + poll the "Sign IPA" GitHub Actions workflow
     if (path === "/api/sign" || path === "/api/sign/") {
       if (request.method !== "POST") return json({ error: "Use POST" }, 405);
       return handleSign(request, env);
