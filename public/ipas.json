@@ -1,0 +1,34 @@
+[
+  {
+    "id": "feather",
+    "name": "Feather",
+    "version": "2.9.0",
+    "bundleId": "thewonderofyou.Feather",
+    "icon": "Resources/AppIcons/Feather.PNG",
+    "source": "feather/Feather.ipa"
+  },
+  {
+    "id": "esign",
+    "name": "ESign",
+    "version": "5.0.2",
+    "bundleId": "p3.xyz.yyyue.esign",
+    "icon": "Resources/AppIcons/Esign.png",
+    "source": "esign/ESign.ipa"
+  },
+  {
+    "id": "ksign",
+    "name": "Ksign",
+    "version": "1.6.1",
+    "bundleId": "nya.asami.ksign",
+    "icon": "Resources/AppIcons/Ksign.PNG",
+    "source": "ksign/ksign.ipa"
+  },
+  {
+    "id": "youtube",
+    "name": "YouTube",
+    "version": "21.41.5",
+    "bundleId": "com.google.ios.youtube",
+    "icon": "Resources/AppIcons/Youtube.PNG",
+    "source": "https://github.com/itzzace/ytkace/releases/download/v1.1.3/YTKACE_1.1.3_YouTube_21.41.5.ipa"
+  }
+]
