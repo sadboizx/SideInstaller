@@ -669,17 +669,42 @@
       });
   }
 
-  /* "Last updated" follows the Production deploy: Pages serves index.html
-     with a Last-Modified header, which document.lastModified reflects. */
+  /* "Last updated" = time of the last Production deployment. Pages production
+     deploys track the main branch, so the newest commit on main is exactly
+     what the live site was built from. Falls back to document.lastModified
+     when the GitHub API is unreachable (rate limit / offline); the fetched
+     value is cached 15 minutes in localStorage. */
   (function(){
     var el = document.getElementById('lastUpdated');
     if(!el) return;
-    var d = new Date(document.lastModified);
-    if(isNaN(d.getTime())) return;
+    var REPO = 'sadboizx/SideInstaller', BRANCH = 'main';
     var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     function pad(n){ return (n<10?'0':'')+n; }
-    el.textContent = d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() +
-      ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    function fmt(d){
+      return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() +
+        ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function fallback(){
+      var d = new Date(document.lastModified);
+      if(!isNaN(d.getTime())) el.textContent = fmt(d);
+    }
+    try{
+      var cached = JSON.parse(localStorage.getItem('si-last-deploy') || 'null');
+      if(cached && cached.t && (Date.now() - cached.at) < 15*60*1000){
+        var cd = new Date(cached.t);
+        if(!isNaN(cd.getTime())){ el.textContent = fmt(cd); return; }
+      }
+    }catch(_){}
+    fetch('https://api.github.com/repos/' + REPO + '/commits/' + BRANCH, {cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('GitHub API ' + r.status); return r.json(); })
+      .then(function(j){
+        var iso = j && j.commit && j.commit.committer && j.commit.committer.date;
+        var d = iso ? new Date(iso) : null;
+        if(!d || isNaN(d.getTime())) throw new Error('bad date');
+        el.textContent = fmt(d);
+        try{ localStorage.setItem('si-last-deploy', JSON.stringify({t: iso, at: Date.now()})); }catch(_){}
+      })
+      .catch(function(){ fallback(); });
   })();
 
   function loadIpas(){
