@@ -480,7 +480,7 @@
     <div class="step-head">
       <span class="step-num">2</span>
       <div>
-        <h2 class="step-title">Sign</h2>
+        <h2 class="step-title">Signing</h2>
         <p class="step-sub">Pick an app and tap <b>Sign</b>, then choose a certificate — signing is automatic.</p>
       </div>
     </div>
@@ -595,7 +595,7 @@
     </div>
 
     <div id="certPickPane">
-      <p class="sign-cert">Sign: <b id="signAppNamePick"></b></p>
+      <p class="sign-cert"><b id="signAppNamePick"></b></p>
       <div class="cert-cards" id="certCards"></div>
       <p class="sign-note" id="certPickNote"></p>
     </div>
@@ -606,7 +606,7 @@
         <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Requesting sign job</span></li>
         <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
         <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Creating install manifest (plist)</span></li>
-        <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Opening the iOS installer</span></li>
+        <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Install signed <b id="signAppName">.ipa</b></span></li>
       </ol>
       <p class="sign-note" id="signNote" aria-live="polite"></p>
       <div class="sign-actions" id="signActions" hidden>
@@ -1081,7 +1081,7 @@
 
   function finish(plistUrl){
     mark('install', 'done');
-    note('Signed with "' + currentCertLabel + '". Opening the iOS installer…');
+    note('Signed with "' + currentCertLabel);
     var itms = 'itms-services://?action=download-manifest&url=' + encodeURIComponent(plistUrl);
     installBtn.setAttribute('href', itms);
     retryBtn.hidden = true;
@@ -1127,7 +1127,7 @@
           after(500, function(){
             mark('manifest', 'done');
             mark('install', 'active');
-            note('Opening the iOS installer…');
+            note('Install signed <b id="signAppName">.ipa</b>');
             after(500, function(){
               finish(plistUrl);
             });
