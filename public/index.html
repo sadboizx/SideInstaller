@@ -1132,7 +1132,6 @@
       var stages = [
         'Queued on GitHub Actions runner (ubuntu-latest)…',
         'Building zsign from source…',
-        'Applying PPQ Protection…',
         'Signing ' + currentIpaLabel + ' with zsign…'
       ];
       var per = signMs / stages.length;
@@ -1235,7 +1234,7 @@
       } else if(res.state === 'started'){
         mark('request', 'done');
         mark('sign', 'active');
-        note('Sign job started on GitHub Actions — signing ' + ipaLabel + '…');
+        note('GitHub Actions — signing ' + ipaLabel + '…');
         poll();
       } else {
         throw new Error('Unexpected response from the server.');
