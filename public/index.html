@@ -605,7 +605,7 @@
       <ol class="sign-steps" id="signSteps">
         <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Preparing to sign <small>(ubuntu-latest)</small></span></li>
         <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
-        <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Preparing install manifest</span></li>
+        <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Publishing install manifest</span></li>
         <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Install signed <b id="signInstallAppName">the app</b>.ipa</span></li>
       </ol>
       <p class="sign-note" id="signNote" aria-live="polite"></p>
@@ -1191,7 +1191,7 @@
         if(si >= stages.length){
           mark('sign', 'done');
           mark('manifest', 'active');
-          note('Preparing install manifest…');
+          note('Publishing install manifest…');
           after(1000, function(){
             mark('manifest', 'done');
             mark('install', 'active');
