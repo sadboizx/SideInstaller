@@ -447,7 +447,7 @@
 
   <div class="notice">
     <b>Note</b>
-    <p>SideInstaller is not affiliated anyhow with SideStore. Please do not ask questions to the SideStore staff about SideInstaller as they are not able to answer. Instead, if you have issues or suggestions, write them in the <a href="https://discord.gg/sQ5Y8vbYJS" target="_blank" rel="noopener">SideInstaller Discord</a>.</p>
+    <p>Need help or have suggestions? Write them in the <a href="https://discord.gg/sQ5Y8vbYJS" target="_blank" rel="noopener">SideInstaller Discord</a>.</p>
   </div>
 
   <label class="tos-gate">
@@ -515,9 +515,9 @@
       </div>
     </div>
     <div class="step-card">
-      <p>That's it. Open <b>SideInstaller</b> from your Home Screen and use it to install <b>SideStore</b> (or SideStore + LiveContainer), straight from your device. No PC needed.</p>
+      <p>That's it — your apps are signed and ready to install. Tap <b>Install now</b> in the sign dialog and they'll appear on your Home Screen, straight from your device. No PC needed.</p>
       <div class="callout">
-        <b>Once SideStore is installed, the DNS profile is no longer needed.</b> Remove it in <code>Settings → General → VPN &amp; Device Management</code> → <b>SideInstaller</b> → <b>Remove Profile</b> — or keep it and just stop using its DNS by switching <code>DNS</code> back to <b>Automatic</b> in the same menu.
+        <b>Important:</b> after installing your apps, leave the DNS profile exactly as it is — installed, and it must stay on at all times. It is the only thing standing between these revoked certificates and Apple's servers: disable or delete it and your apps stop working. Likewise, do not run a VPN — it takes over DNS on iOS and breaks this protection.
       </div>
     </div>
   </section>
@@ -558,22 +558,8 @@
         </button>
       </div>
 
-      <!-- step 2 — topic -->
-      <div class="pane pane-q" data-step="1" hidden>
-        <button type="button" class="opt" data-value="sidestore">
-          <span class="opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg></span>
-          <span class="opt-text"><b data-t="optSidestore">SideStore</b><small data-t="optSidestoreSub">Installing SideStore on your device</small></span>
-          <svg class="opt-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-        </button>
-        <button type="button" class="opt" data-value="jit">
-          <span class="opt-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg></span>
-          <span class="opt-text"><b data-t="optJit">JIT</b><small data-t="optJitSub">Enabling JIT for your apps</small></span>
-          <svg class="opt-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-        </button>
-      </div>
-
-      <!-- step 3 — the tutorials themselves -->
-      <div class="pane" data-step="2" hidden>
+      <!-- step 2 — the tutorials themselves -->
+      <div class="pane" data-step="1" hidden>
         <div class="videos" id="tutorialVideos"></div>
       </div>
     </div>
@@ -763,20 +749,16 @@
   var panes=[].slice.call(wizard.querySelectorAll('.pane'));
 
   var VIDEOS={
-    en:{sidestore:['4J4muoczR54','OyeYTSEheQw'], jit:['U90-4jA8Kj8','WCYkxfRHapg']},
-    es:{sidestore:['tXGihEkcg-4'], jit:['hEhkDEALNWo']}
+    en:{jit:['U90-4jA8Kj8','WCYkxfRHapg']},
+    es:{jit:['hEhkDEALNWo']}
   };
   var STRINGS={
-    en:{lang:'Language', topic:'Tutorial for', sidestore:'SideStore', jit:'JIT',
-        sidestoreSub:'Installing SideStore on your device', jitSub:'Enabling JIT for your apps',
-        tutorial:'Tutorial', watch:'Watch on YouTube'},
-    es:{lang:'Idioma', topic:'Tutorial para', sidestore:'SideStore', jit:'JIT',
-        sidestoreSub:'Instalar SideStore en tu dispositivo', jitSub:'Activar JIT en tus apps',
-        tutorial:'Tutorial', watch:'Ver en YouTube'}
+    en:{lang:'Language', jit:'JIT', tutorial:'Tutorial', watch:'Watch on YouTube'},
+    es:{lang:'Idioma', jit:'JIT', tutorial:'Tutorial', watch:'Ver en YouTube'}
   };
 
   var reduce=window.matchMedia?window.matchMedia('(prefers-reduced-motion:reduce)'):{matches:false};
-  var step=0, lang='en', topic='sidestore', outTimer=null;
+  var step=0, lang='en', topic='jit', outTimer=null;
 
   function t(key){ return (STRINGS[lang]||STRINGS.en)[key]; }
 
@@ -796,10 +778,10 @@
   function showStep(next,dir){
     if(next===step) return;
     var cur=panes[step], nxt=panes[next];
-    if(next===2) buildVideos();
-    tutTitle.textContent = next===0 ? STRINGS.en.lang : next===1 ? t('topic') : t(topic);
+    if(next===1) buildVideos();
+    tutTitle.textContent = next===0 ? STRINGS.en.lang : t(topic);
     tutBack.hidden = next===0;
-    tutCard.classList.toggle('wide', next===2);
+    tutCard.classList.toggle('wide', next===1);
 
     clearTimeout(outTimer);
     cur.classList.remove('in','out','rev');
@@ -822,7 +804,7 @@
   function focusPane(pane){
     var first=pane.querySelector('.opt');
     if(first) first.focus();
-    else if(step===2) tutBack.focus();
+    else if(step===1) tutBack.focus();
   }
 
   function buildVideos(){
@@ -860,7 +842,7 @@
   /* Back out of the modal entirely to step 0, with no animation. */
   function resetTut(){
     clearTimeout(outTimer);
-    step=0; lang='en'; topic='sidestore';
+    step=0; lang='en'; topic='jit';
     panes.forEach(function(p,i){
       p.classList.remove('in','out','rev');
       p.hidden = i!==0;
@@ -869,7 +851,6 @@
     tutCard.classList.remove('wide');
     tutBack.hidden=true;
     tutTitle.textContent=STRINGS.en.lang;
-    applyLang();
     /* No height tween on the way in — the card should just appear at size. */
     wizard.classList.add('no-anim');
     watch(panes[0]);
@@ -878,19 +859,11 @@
     wizard.classList.remove('no-anim');
   }
 
-  /* Step 2 speaks the language picked in step 1. */
-  function applyLang(){
-    wizard.querySelector('[data-t="optSidestore"]').textContent=t('sidestore');
-    wizard.querySelector('[data-t="optSidestoreSub"]').textContent=t('sidestoreSub');
-    wizard.querySelector('[data-t="optJit"]').textContent=t('jit');
-    wizard.querySelector('[data-t="optJitSub"]').textContent=t('jitSub');
-  }
-
   wizard.addEventListener('click',function(e){
     var btn=e.target.closest && e.target.closest('.opt');
     if(!btn) return;
-    if(step===0){ lang=btn.getAttribute('data-value'); applyLang(); showStep(1,1); }
-    else if(step===1){ topic=btn.getAttribute('data-value'); showStep(2,1); }
+    /* Language picked → straight to the JIT tutorials (no topic step). */
+    if(step===0){ lang=btn.getAttribute('data-value'); showStep(1,1); }
   });
   tutBack.addEventListener('click',function(){ if(step>0) showStep(step-1,-1); });
 
