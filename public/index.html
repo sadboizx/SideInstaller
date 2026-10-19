@@ -445,6 +445,12 @@
     <p>SideInstaller is not affiliated anyhow with SideStore. Please do not ask questions to the SideStore staff about SideInstaller as they are not able to answer. Instead, if you have issues or suggestions, write them in the <a href="https://discord.gg/sQ5Y8vbYJS" target="_blank" rel="noopener">SideInstaller Discord</a>.</p>
   </div>
 
+  <label class="tos-gate">
+    <input type="checkbox" id="tosCheck">
+    <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span>
+    <span class="tos-text">I have read and accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>.</span>
+  </label>
+
   <section class="step" id="setup">
     <div class="step-head">
       <span class="step-num">1</span>
@@ -474,13 +480,7 @@
       </div>
     </div>
 
-    <label class="tos-gate">
-      <input type="checkbox" id="tosCheck">
-      <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span>
-      <span class="tos-text">I have read and accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>.</span>
-    </label>
 
-    <main id="ipaList" class="ipa-list">
       <!-- app rows rendered from ipas.json -->
     </main>
 
@@ -1100,16 +1100,13 @@
       mark('request', 'done');
       mark('sign', 'active');
       /* Mirror the real "Sign IPA" workflow (sign.yml): queue a runner,
-         build zsign, inject the certificate (.p12) + provisioning profile
-         (.mobileprovision), sign the IPA, upload the signed IPA to the
-         GitHub Release. The step total is 8–10s, split across the stages. */
+         build zsign, then sign the IPA. The step total is 8–10s, split
+         across the stages. */
       var signMs = 8000 + Math.random() * 2000;
       var stages = [
         'Queued on GitHub Actions runner (ubuntu-latest)…',
         'Building zsign from source…',
-        'Injecting certificate "' + currentCertLabel + '" (.p12) + provisioning profile (.mobileprovision)…',
-        'Signing ' + currentIpaLabel + ' with zsign…',
-        'Uploading the signed IPA to the GitHub Release…'
+        'Signing ' + currentIpaLabel + ' with zsign…'
       ];
       var per = signMs / stages.length;
       var si = 0;
