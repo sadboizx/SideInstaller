@@ -260,81 +260,58 @@
   .tos-text b{color:var(--text)}
   .tos-text a{color:var(--accent2); text-decoration:none; font-weight:600}
   .tos-text a:hover{text-decoration:underline}
-  .grid{transition:opacity .25s, filter .25s}
-  .grid.locked{opacity:.4; filter:saturate(.6); pointer-events:none}
 
-  /* ---- controls ---- */
-  .controls{
-    display:flex; gap:10px; margin:0 0 14px; flex-wrap:wrap; align-items:center;
+  /* ---- certificate picker (replaces the search box + sort dropdown) ---- */
+  .cert-picker{margin:0 0 14px}
+  .cert-picker > label{
+    display:block; margin:0 0 8px; font-size:12.5px; font-weight:800;
+    letter-spacing:.05em; text-transform:uppercase; color:var(--faint);
   }
-  .search{position:relative; flex:1 1 240px}
-  .search svg{position:absolute; left:14px; top:50%; transform:translateY(-50%); width:18px; height:18px; color:var(--faint)}
-  .search input{
-    width:100%; padding:13px 14px 13px 42px; font-size:15px; color:var(--text);
-    background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius-sm);
-    outline:none; transition:border-color .15s, background .15s;
+  .cert-select{
+    width:100%; padding:14px 42px 14px 16px; font-size:15px; font-weight:600; font-family:inherit;
+    color:var(--text); cursor:pointer; outline:none;
+    background:var(--card) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ba3b8' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>") no-repeat right 16px center;
+    border:1px solid var(--stroke); border-radius:var(--radius-sm);
+    appearance:none; -webkit-appearance:none;
+    transition:border-color .15s, background-color .15s;
   }
-  .search input:focus{border-color:var(--accent); background:var(--card-hover)}
-  .search input::placeholder{color:var(--faint)}
-  .sort{
-    padding:13px 38px 13px 14px; font-size:14px; font-weight:600; color:var(--text);
-    background:var(--card) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ba3b8' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>") no-repeat right 14px center;
-    border:1px solid var(--stroke); border-radius:var(--radius-sm); outline:none;
-    appearance:none; -webkit-appearance:none; cursor:pointer;
-  }
+  .cert-select:focus{border-color:var(--accent); background-color:var(--card-hover)}
+  .cert-select option{background:#0d1530; color:var(--text)}
 
-  /* ---- cert grid ---- */
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(248px,1fr)); gap:14px}
-  .cert-card{
-    display:flex; flex-direction:column; gap:12px; padding:18px;
+  /* ---- IPA list (replaces the certificate cards) ----
+     One row per signable app: icon, name + version/bundle id, Sign button. */
+  .ipa-list{display:flex; flex-direction:column; transition:opacity .25s, filter .25s}
+  .ipa-list.locked{opacity:.4; filter:saturate(.6); pointer-events:none}
+  .ipa-row{
+    display:flex; align-items:center; gap:16px; padding:14px 16px;
     background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius);
     -webkit-backdrop-filter:blur(20px) saturate(140%); backdrop-filter:blur(20px) saturate(140%);
-    box-shadow:0 7px 14px rgba(0,0,0,.07);
-    transition:transform .16s ease, border-color .16s, background .16s;
   }
-  .cert-card:hover{transform:translateY(-3px); background:var(--card-hover); border-color:var(--stroke-strong)}
-  .cert-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
-  .cert-name{margin:0; font-size:17px; font-weight:700; min-width:0; word-break:break-word; overflow-wrap:anywhere}
-  .cert-meta{margin:0; font-size:12.5px; color:var(--faint)}
-  /* The countdown used to be the pill; the verdict took that slot, so the
-     colour rides along here instead of being lost. */
-  .days{font-weight:600}
-  .days.good{color:var(--good)}
-  .days.warn{color:var(--warn)}
-  .days.crit{color:var(--crit)}
-  .days.bad{color:var(--bad)}
-  .pill{
-    flex:none; font-size:11.5px; font-weight:700; letter-spacing:.01em;
-    padding:5px 10px; border-radius:999px; white-space:nowrap;
-    border:1px solid transparent;
+  .ipa-row + .ipa-row{margin-top:12px}
+  .ipa-icon{
+    flex:none; width:64px; height:64px; border-radius:16px; overflow:hidden;
+    background:rgba(255,255,255,.06);
   }
-  .pill.good{color:var(--good); background:rgba(52,211,153,.12); border-color:rgba(52,211,153,.25)}
-  .pill.warn{color:var(--warn); background:rgba(251,191,36,.12); border-color:rgba(251,191,36,.25)}
-  .pill.crit{color:var(--crit); background:rgba(251,146,60,.13); border-color:rgba(251,146,60,.28)}
-  .pill.bad{color:var(--bad); background:rgba(248,113,113,.13); border-color:rgba(248,113,113,.3)}
-  .pill.unknown{color:var(--muted); background:rgba(255,255,255,.05); border-color:var(--stroke)}
-  .install-btn{
-    margin-top:auto; display:inline-flex; align-items:center; justify-content:center; gap:8px;
-    padding:13px 16px; font-size:15px; font-weight:700; text-decoration:none; color:#fff;
-    border-radius:var(--radius-btn);
-    background:var(--brand);
-    box-shadow:0 8px 24px rgba(33,112,245,.4);
-    transition:transform .14s, box-shadow .14s, filter .14s;
+  .ipa-icon img{width:100%; height:100%; object-fit:cover; display:block}
+  .ipa-info{flex:1; min-width:0}
+  .ipa-name{margin:0; font-size:18px; font-weight:700; color:var(--text); letter-spacing:-.01em}
+  .ipa-meta{
+    margin:3px 0 0; font-size:13.5px; color:var(--faint);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .install-btn svg{width:17px; height:17px}
-  .install-btn:hover{filter:brightness(1.08); box-shadow:0 12px 30px rgba(77,173,255,.45)}
-  .install-btn:active{transform:scale(.97)}
-  .cert-card[data-days^="-"] .install-btn{filter:saturate(.5) brightness(.85)}
-  /* A working certificate is the whole point of the page, so give the first
-     ones a visible edge rather than relying on position alone. */
-  .cert-card[data-rank="0"]{border-color:rgba(52,211,153,.4); background:var(--card-hover)}
-  .cert-card[data-rank="0"]:hover{border-color:rgba(52,211,153,.65)}
-
-  .empty{display:none; text-align:center; color:var(--muted); padding:50px 0; font-size:15px}
-  .empty.show{display:block}
+  .sign-btn{
+    flex:none; padding:12px 26px; font-size:16px; font-weight:700; font-family:inherit;
+    color:#c4b0f5; background:rgba(255,255,255,.07);
+    border:0; border-radius:999px; cursor:pointer;
+    transition:background .14s, transform .14s, opacity .14s;
+  }
+  .sign-btn:hover{background:rgba(255,255,255,.13)}
+  .sign-btn:active{transform:scale(.95)}
+  .sign-btn:disabled{opacity:.35; cursor:default}
+  .ipa-error{color:var(--muted); font-size:14px; text-align:center; padding:24px 0}
 
   /* ---- sign progress modal ----
-     Shown after tapping Install on a certificate: the IPA is signed with that
+     Shown after tapping Sign on an app: the IPA is signed with the chosen
      certificate on GitHub Actions (zsign), then the install manifest (plist)
      is built and the iOS installer opens automatically. */
   .sign-cert{margin:0 0 14px; color:var(--muted); font-size:14px}
@@ -400,13 +377,6 @@
   .footer{margin-top:40px; text-align:center; color:var(--faint); font-size:13px}
   .footer a{color:var(--muted); text-decoration:none}
   .footer a:hover{color:var(--text)}
-
-  @media (max-width:520px){
-    .grid{grid-template-columns:1fr}
-    .controls{flex-direction:column; align-items:stretch}
-    .search{flex:0 0 auto} /* in column direction the 240px basis becomes height */
-    .sort{width:100%}
-  }
 </style>
 </head>
 <body>
@@ -477,7 +447,7 @@
       <span class="step-num">2</span>
       <div>
         <h2 class="step-title">Installation</h2>
-        <p class="step-sub">Tap <b>Install</b> on any certificate — <b>Feather.ipa</b> is signed with it automatically.</p>
+        <p class="step-sub">Pick an app, choose a certificate, tap <b>Sign</b> — signing is automatic.</p>
       </div>
     </div>
 
@@ -487,33 +457,28 @@
       <span class="tos-text">I have read and accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>.</span>
     </label>
 
-    <div class="controls">
-      <div class="search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input id="q" type="search" placeholder="Search certificates…" autocomplete="off" spellcheck="false">
-      </div>
-      <select id="sort" class="sort" aria-label="Sort certificates">
-        <option value="days">Most days left</option>
-        <option value="days-asc">Soonest to expire</option>
-        <option value="name">Name (A–Z)</option>
+    <div class="cert-picker">
+      <label for="certSelect">Certificate</label>
+      <select id="certSelect" class="cert-select" aria-label="Choose a certificate">
+        <option value="">Loading certificates…</option>
       </select>
     </div>
 
-    <main id="grid" class="grid">
-      <!-- cert-cards rendered dynamically from /api/certs (Worker parses certificates/) -->
+    <main id="ipaList" class="ipa-list">
+      <!-- app rows rendered from ipas.json -->
     </main>
-    <p id="empty" class="empty">No certificates match your search.</p>
 
     <details class="howto">
       <summary>How to install</summary>
       <div class="howto-body">
         <ol>
           <li>Open this page <b>on your iPhone or iPad in Safari</b>.</li>
-          <li>Pick any certificate above and tap <b>Install</b>.</li>
-          <li><b>Signing happens automatically:</b> <code>feather/Feather.ipa</code> is signed with the certificate you picked using zsign on GitHub Actions (zsign can't run on Cloudflare Workers, so the heavy work happens there), then the install manifest is built — you just wait and watch the progress.</li>
+          <li>Choose a <b>certificate</b> from the dropdown list.</li>
+          <li>Pick an app below and tap <b>Sign</b>.</li>
+          <li><b>Signing happens automatically:</b> the app's IPA is signed with your certificate using zsign on GitHub Actions (zsign can't run on Cloudflare Workers, so the heavy work happens there), then the install manifest is built — you just wait and watch the progress.</li>
           <li>When the manifest is ready, the iOS installer opens by itself. Confirm the prompt and wait for the app on your Home Screen.</li>
           <li>Go to <code>Settings → General → VPN &amp; Device Management</code>, tap the developer profile, and <b>Trust</b> it.</li>
-          <li>Launch the app. If one certificate is revoked or won't open, just install with another.</li>
+          <li>Launch the app. If one certificate is revoked or won't open, try another.</li>
         </ol>
       </div>
     </details>
@@ -552,7 +517,7 @@
       </button>
       <h3 class="modal-title" id="tutorialTitle">Language</h3>
       <button type="button" class="modal-close" data-close aria-label="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
 
@@ -593,12 +558,12 @@
   </div>
 </div>
 
-<!-- Sign progress modal: Install → auto sign (GitHub Actions + zsign) → manifest → itms-services -->
+<!-- Sign progress modal: pick app + certificate → auto sign (GitHub Actions + zsign) → manifest → itms-services -->
 <div class="modal" id="signModal" role="dialog" aria-modal="true" aria-labelledby="signTitle" hidden>
   <div class="modal-backdrop" data-sign-close></div>
   <div class="modal-card">
     <div class="modal-head">
-      <h3 class="modal-title" id="signTitle">Installing Feather</h3>
+      <h3 class="modal-title" id="signTitle">Installing</h3>
       <button type="button" class="modal-close" data-sign-close aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
@@ -606,7 +571,7 @@
     <p class="sign-cert">Certificate: <b id="signCertName"></b></p>
     <ol class="sign-steps" id="signSteps">
       <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Requesting sign job</span></li>
-      <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b>Feather.ipa</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
+      <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
       <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Creating install manifest (plist)</span></li>
       <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Opening the iOS installer</span></li>
     </ol>
@@ -623,126 +588,105 @@
 
 <script>
 (function(){
-  var grid=document.getElementById('grid');
-  var q=document.getElementById('q');
-  var sortSel=document.getElementById('sort');
-  var empty=document.getElementById('empty');
+  var ipaList=document.getElementById('ipaList');
+  var certSelect=document.getElementById('certSelect');
   var certCountEl=document.getElementById('certCount');
-  var cards=[];
 
-  function days(c){ var d=parseInt(c.getAttribute('data-days'),10); return isNaN(d)?-1e9:d; }
-  function name(c){ return (c.getAttribute('data-name')||'').toLowerCase(); }
-  /* 0 = Apple still honours it, 1 = never checked, 2 = revoked or expired. */
-  function rank(c){ var r=parseInt(c.getAttribute('data-rank'),10); return isNaN(r)?1:r; }
-
-  function daysClass(d){
-    if(d < 0) return 'bad';
-    if(d < 30) return 'warn';
-    return 'good';
-  }
   function daysLabel(d){
-    if(d <= -999999) return 'unknown';
+    if(d <= -999999) return 'expiry unknown';
     if(d < 0) return Math.abs(d) + ' days expired';
     return d + ' days left';
   }
 
-  function renderCard(c){
-    var art = document.createElement('article');
-    art.className = 'cert-card';
-    art.setAttribute('data-name', c.name || '');
-    art.setAttribute('data-days', String(c.days != null ? c.days : -999999));
-    art.setAttribute('data-rank', String(c.rank != null ? c.rank : 1));
-    art.setAttribute('data-status', c.status || 'unknown');
-
-    var head = document.createElement('div');
-    head.className = 'cert-head';
-    var h3 = document.createElement('h3');
-    h3.className = 'cert-name';
-    h3.textContent = c.displayName || c.name || '';
-    head.appendChild(h3);
-    art.appendChild(head);
-
-    if(c.expires){
-      var meta = document.createElement('p');
-      meta.className = 'cert-meta';
-      var d = c.days != null ? c.days : -999999;
-      var span = document.createElement('span');
-      span.className = 'days ' + daysClass(d);
-      span.textContent = daysLabel(d);
-      meta.appendChild(document.createTextNode('Expires ' + c.expires + ' · '));
-      meta.appendChild(span);
-      art.appendChild(meta);
-    }
-
-    var a = document.createElement('a');
-    a.className = 'install-btn';
-    a.href = '#';
-    /* The sign flow needs the certificate folder name (validated server-side
-       against certificates/index.json), not a static plist path. */
-    a.setAttribute('data-cert', c.folder || c.displayName || c.name || '');
-    a.setAttribute('data-label', c.displayName || c.name || '');
-    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg> Install';
-    art.appendChild(a);
-    return art;
+  function updateSignButtons(){
+    var ok = certSelect.options.length > 0 && certSelect.value !== '';
+    var btns = ipaList.querySelectorAll('.sign-btn');
+    for(var i=0;i<btns.length;i++){ btns[i].disabled = !ok; }
   }
 
-  function apply(){
-    var term=(q.value||'').trim().toLowerCase();
-    var mode=sortSel.value;
-    var sorted=cards.slice().sort(function(a,b){
-      /* Rank leads in every mode. Sorting by name or by expiry is a way to
-         find one certificate among many, never a reason to be handed a dead
-         one first. */
-      if(rank(a)!==rank(b)) return rank(a)-rank(b);
-      if(mode==='name') return name(a).localeCompare(name(b));
-      if(mode==='days-asc') return days(a)-days(b);
-      return days(b)-days(a);
-    });
-    var visible=0;
-    sorted.forEach(function(c){
-      var show=!term || name(c).indexOf(term)>-1;
-      c.style.display=show?'':'none';
-      if(show) visible++;
-      grid.appendChild(c);
-    });
-    empty.classList.toggle('show', visible===0);
+  function renderIpaRow(app){
+    var row=document.createElement('div');
+    row.className='ipa-row';
+
+    var icon=document.createElement('div');
+    icon.className='ipa-icon';
+    var img=document.createElement('img');
+    img.src=app.icon; img.alt=app.name; img.loading='lazy';
+    icon.appendChild(img);
+
+    var info=document.createElement('div');
+    info.className='ipa-info';
+    var h3=document.createElement('h3');
+    h3.className='ipa-name'; h3.textContent=app.name;
+    var p=document.createElement('p');
+    p.className='ipa-meta'; p.textContent=app.version + ' • ' + app.bundleId;
+    info.appendChild(h3); info.appendChild(p);
+
+    var btn=document.createElement('button');
+    btn.type='button'; btn.className='sign-btn';
+    btn.setAttribute('data-ipa', app.id);
+    btn.setAttribute('data-label', app.name);
+    btn.textContent='Sign';
+    btn.disabled=true;
+
+    row.appendChild(icon); row.appendChild(info); row.appendChild(btn);
+    return row;
   }
 
   function loadCerts(){
     return fetch('/api/certs', {cache:'no-store'})
       .then(function(r){ if(!r.ok) throw new Error('/api/certs ' + r.status); return r.json(); })
       .then(function(list){
-        grid.innerHTML = '';
-        cards = [];
-        (list || []).forEach(function(item){
-          var el = renderCard(item);
-          cards.push(el);
-          grid.appendChild(el);
+        certSelect.innerHTML='';
+        (list||[]).forEach(function(c){
+          var opt=document.createElement('option');
+          opt.value=c.folder || c.displayName || c.name || '';
+          opt.textContent=(c.displayName || c.name || '') + ' — ' + daysLabel(c.days != null ? c.days : -999999);
+          certSelect.appendChild(opt);
         });
-        if(certCountEl) certCountEl.textContent = String(cards.length);
-        apply();
+        if(certCountEl) certCountEl.textContent=String((list||[]).length);
+        updateSignButtons();
       })
       .catch(function(err){
         console.error('Failed to load /api/certs', err);
-        if(certCountEl) certCountEl.textContent = '0';
-        empty.classList.add('show');
-        empty.textContent = 'Could not load certificates from /api/certs';
+        certSelect.innerHTML='';
+        var opt=document.createElement('option');
+        opt.value=''; opt.textContent='Could not load certificates';
+        certSelect.appendChild(opt);
+        if(certCountEl) certCountEl.textContent='0';
+        updateSignButtons();
       });
   }
 
-  q.addEventListener('input',apply);
-  sortSel.addEventListener('change',apply);
-  loadCerts();
+  function loadIpas(){
+    return fetch('ipas.json', {cache:'no-store'})
+      .then(function(r){ if(!r.ok) throw new Error('ipas.json ' + r.status); return r.json(); })
+      .then(function(ipas){
+        ipaList.innerHTML='';
+        (ipas||[]).forEach(function(app){
+          ipaList.appendChild(renderIpaRow(app));
+        });
+        updateSignButtons();
+      })
+      .catch(function(err){
+        console.error('Failed to load ipas.json', err);
+        ipaList.innerHTML='<p class="ipa-error">Could not load the app list.</p>';
+      });
+  }
 
-  /* TOS gate: installs stay dimmed and inert until the box is ticked.
-     Acceptance is remembered per device. */
+  certSelect.addEventListener('change', updateSignButtons);
+  loadCerts();
+  loadIpas();
+
+  /* TOS gate: the app list stays dimmed and non-interactive until the box is
+     ticked. Acceptance is remembered per device. */
   var tos=document.getElementById('tosCheck');
   var TOS_KEY='si-tos-accepted';
   function tosLocked(){ return !tos.checked; }
   function applyTos(){
-    grid.classList.toggle('locked', tosLocked());
-    grid.setAttribute('aria-disabled', tosLocked()?'true':'false');
-    if('inert' in grid) grid.inert=tosLocked();
+    ipaList.classList.toggle('locked', tosLocked());
+    ipaList.setAttribute('aria-disabled', tosLocked()?'true':'false');
+    if('inert' in ipaList) ipaList.inert=tosLocked();
     try{
       if(tos.checked) localStorage.setItem(TOS_KEY,'1');
       else localStorage.removeItem(TOS_KEY);
@@ -752,7 +696,7 @@
   tos.addEventListener('change',applyTos);
   /* Belt and braces for browsers without inert: swallow activations
      (including keyboard Enter) while locked. */
-  grid.addEventListener('click',function(e){
+  ipaList.addEventListener('click',function(e){
     if(tosLocked()){ e.preventDefault(); e.stopPropagation(); }
   },true);
   applyTos();
@@ -927,16 +871,18 @@
 
 <script>
 /* ---- Sign + Install flow ----
-   Tapping Install on any certificate card runs the whole pipeline:
-     1. POST /api/sign {cert} — the Worker validates the certificate against
-        certificates/index.json and dispatches the "Sign Feather IPA" GitHub
-        Actions workflow (zsign cannot run on Cloudflare Workers, so the
-        heavy signing work happens on a GitHub-hosted Ubuntu runner).
-     2. The workflow builds zsign, signs public/feather/Feather.ipa with the
+   Tapping Sign on an app runs the whole pipeline for the chosen certificate:
+     1. POST /api/sign {cert, ipa} — the Worker validates the certificate
+        against certificates/index.json and the app against public/ipas.json,
+        then dispatches the "Sign IPA" GitHub Actions workflow (zsign cannot
+        run on Cloudflare Workers, so the heavy signing work happens on a
+        GitHub-hosted Ubuntu runner).
+     2. The workflow builds zsign, resolves the app's IPA (from the repo, or
+        downloads it when the source is an external URL), signs it with the
         certificate's .p12 + .mobileprovision, uploads the signed IPA to a
-        GitHub Release, and commits public/output/feather-<cert>.plist.
-     3. This page polls GET /api/sign-status?cert=... until the run succeeds
-        and the manifest is live, then opens
+        GitHub Release, and commits public/output/<ipa>-<cert>.plist.
+     3. This page polls GET /api/sign-status?cert=...&ipa=... until the run
+        succeeds and the manifest is live, then opens
         itms-services://?action=download-manifest&url=<manifest> automatically.
    No PC, no manual signing, no pre-made IPA per certificate. */
 (function(){
@@ -946,16 +892,19 @@
   var modal = document.getElementById('signModal');
   var titleEl = document.getElementById('signTitle');
   var certEl = document.getElementById('signCertName');
+  var appEl = document.getElementById('signAppName');
   var noteEl = document.getElementById('signNote');
   var stepsEl = document.getElementById('signSteps');
   var actionsEl = document.getElementById('signActions');
   var installBtn = document.getElementById('signInstallNow');
   var retryBtn = document.getElementById('signRetry');
+  var certSelect = document.getElementById('certSelect');
 
   var ORDER = ['request','sign','manifest','install'];
   var pollTimer = null;
   var dead = false;
-  var currentCert = '', currentLabel = '';
+  var currentIpa = '', currentIpaLabel = '';
+  var currentCert = '', currentCertLabel = '';
   var startedAt = 0, autoOpened = false;
 
   function postJSON(url, data){
@@ -1024,7 +973,7 @@
 
   function finish(plistUrl){
     mark('install', 'done');
-    note('Signed with "' + currentLabel + '". Opening the iOS installer…');
+    note('Signed with "' + currentCertLabel + '". Opening the iOS installer…');
     var itms = 'itms-services://?action=download-manifest&url=' + encodeURIComponent(plistUrl);
     installBtn.setAttribute('href', itms);
     retryBtn.hidden = true;
@@ -1043,10 +992,10 @@
         fail('Timed out waiting for the sign job (30 min). Please try again.');
         return;
       }
-      getJSON('/api/sign-status?cert=' + encodeURIComponent(currentCert)).then(function(res){
+      getJSON('/api/sign-status?cert=' + encodeURIComponent(currentCert) + '&ipa=' + encodeURIComponent(currentIpa)).then(function(res){
         if(dead) return;
         if(res.state === 'running'){
-          note('Signing Feather.ipa with zsign… (' + elapsed() + ' elapsed)');
+          note('Signing ' + currentIpaLabel + ' with zsign… (' + elapsed() + ' elapsed)');
           poll();
         } else if(res.state === 'finishing'){
           mark('manifest', 'active');
@@ -1070,39 +1019,49 @@
     }, POLL_MS);
   }
 
-  function startSign(cert, label){
+  function startSign(ipaId, ipaLabel){
+    var cert = certSelect.value;
+    var certLabel = cert;
+    if(certSelect.selectedIndex >= 0 && certSelect.options[certSelect.selectedIndex]){
+      certLabel = certSelect.options[certSelect.selectedIndex].text;
+    }
+    if(!cert){
+      note('Please choose a certificate first.');
+      return;
+    }
     dead = false;
     autoOpened = false;
-    currentCert = cert;
-    currentLabel = label;
+    currentIpa = ipaId; currentIpaLabel = ipaLabel;
+    currentCert = cert; currentCertLabel = certLabel;
     startedAt = Date.now();
     resetSteps();
     actionsEl.hidden = true;
     retryBtn.hidden = true;
     installBtn.setAttribute('href', '#');
-    certEl.textContent = label;
-    titleEl.textContent = 'Installing Feather';
+    certEl.textContent = certLabel;
+    appEl.textContent = ipaLabel;
+    titleEl.textContent = 'Installing ' + ipaLabel;
     openModal();
     mark('request', 'active');
     note('Requesting a sign job…');
-    postJSON('/api/sign', { cert: cert }).then(function(res){
+    postJSON('/api/sign', { cert: cert, ipa: ipaId }).then(function(res){
       if(dead) return;
       if(res.error) throw new Error(res.error);
       if(res.state === 'complete' && res.reused){
         mark('request', 'done');
         mark('sign', 'done');
         mark('manifest', 'done');
-        note('This certificate already has a signed build — reusing it.');
+        note('This app already has a signed build for this certificate — reusing it.');
         finish(res.plistUrl);
       } else if(res.state === 'running'){
         mark('request', 'done');
         mark('sign', 'active');
-        note('A sign job for this certificate is already running — waiting for it…');
+        note('A sign job for this app + certificate is already running — waiting for it…');
         poll();
       } else if(res.state === 'started'){
         mark('request', 'done');
         mark('sign', 'active');
-        note('Sign job started on GitHub Actions — signing Feather.ipa…');
+        note('Sign job started on GitHub Actions — signing ' + ipaLabel + '…');
         poll();
       } else {
         throw new Error('Unexpected response from the server.');
@@ -1113,17 +1072,17 @@
   }
 
   document.addEventListener('click', function(e){
-    var a = e.target.closest ? e.target.closest('a[data-cert]') : null;
-    if(!a) return;
+    var b = e.target.closest ? e.target.closest('button[data-ipa]') : null;
+    if(!b || b.disabled) return;
     /* Respect the TOS gate even for keyboard activation. */
     var tos = document.getElementById('tosCheck');
     if(tos && !tos.checked) return;
     e.preventDefault();
-    startSign(a.getAttribute('data-cert'), a.getAttribute('data-label') || a.getAttribute('data-cert'));
+    startSign(b.getAttribute('data-ipa'), b.getAttribute('data-label') || b.getAttribute('data-ipa'));
   }, true);
 
   retryBtn.addEventListener('click', function(){
-    startSign(currentCert, currentLabel);
+    startSign(currentIpa, currentIpaLabel);
   });
 
   [].forEach.call(modal.querySelectorAll('[data-sign-close]'), function(el){
