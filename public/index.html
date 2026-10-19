@@ -278,12 +278,13 @@
   .tos-text a:hover{text-decoration:underline}
 
   /* ---- IPA list ----
-     One dark row per signable app: icon, name + version/bundle id, Sign button. */
+     One row per signable app: icon, name + version/bundle id, Sign button.
+     Rows use the same card background as the Version/GitHub buttons. */
   .ipa-list{display:flex; flex-direction:column; transition:opacity .25s, filter .25s}
   .ipa-list.locked{opacity:.4; filter:saturate(.6); pointer-events:none}
   .ipa-row{
     display:flex; align-items:center; gap:16px; padding:14px 16px;
-    background:rgba(4,8,20,.92); border:1px solid var(--stroke-strong); border-radius:var(--radius);
+    background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius);
     -webkit-backdrop-filter:blur(20px) saturate(140%); backdrop-filter:blur(20px) saturate(140%);
   }
   .ipa-row + .ipa-row{margin-top:12px}
@@ -300,12 +301,12 @@
   }
   .sign-btn{
     flex:none; padding:12px 26px; font-size:16px; font-weight:700; font-family:inherit;
-    color:#fff; background:var(--brand);
+    color:#fff; background:#4caf50;
     border:0; border-radius:999px; cursor:pointer;
-    box-shadow:0 6px 18px rgba(33,112,245,.35);
+    box-shadow:0 6px 18px rgba(76,175,80,.35);
     transition:filter .14s, transform .14s;
   }
-  .sign-btn:hover{filter:brightness(1.1)}
+  .sign-btn:hover{filter:brightness(1.08)}
   .sign-btn:active{transform:scale(.95)}
   .ipa-error{color:var(--muted); font-size:14px; text-align:center; padding:24px 0}
 
@@ -464,11 +465,11 @@
     </div>
   </section>
 
-  <section class="step" id="installation">
+  <section class="step" id="sign">
     <div class="step-head">
       <span class="step-num">2</span>
       <div>
-        <h2 class="step-title">Installation</h2>
+        <h2 class="step-title">Sign</h2>
         <p class="step-sub">Pick an app and tap <b>Sign</b>, then choose a certificate — signing is automatic.</p>
       </div>
     </div>
@@ -583,12 +584,12 @@
       </button>
       <h3 class="modal-title" id="signTitle">Choose certificate</h3>
       <button type="button" class="modal-close" data-sign-close aria-label="Close">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
 
     <div id="certPickPane">
-      <p class="sign-cert">Signing: <b id="signAppNamePick"></b></p>
+      <p class="sign-cert">Sign: <b id="signAppNamePick"></b></p>
       <div class="cert-cards" id="certCards"></div>
       <p class="sign-note" id="certPickNote"></p>
     </div>
@@ -871,10 +872,12 @@
 /* ---- Sign + Install flow ----
    Tapping Sign on an app opens the certificate picker (cards). Tapping a
    certificate starts the whole pipeline for that pair:
-     1. POST /api/sign {cert, ipa} — the Worker validates the certificate
-        against certificates/index.json and the app against public/ipas.json,
-        then dispatches the "Sign IPA" GitHub Actions workflow (zsign cannot
-        run on Cloudflare Workers, so the heavy signing work happens on a
+     1. POST /api/sign {cert, ipa} — the Worker first checks whether the
+        GitHub Release already holds the signed IPA for this pair. If yes,
+        it returns it directly: the workflow is NEVER dispatched for an
+        already-signed IPA. Otherwise it validates cert + app and dispatches
+        the "Sign IPA" GitHub Actions workflow (zsign cannot run on
+        Cloudflare Workers, so the heavy signing work happens on a
         GitHub-hosted Ubuntu runner).
      2. The workflow builds zsign, resolves the app's IPA (from the repo, or
         downloads it when the source is an external URL), signs it with the
@@ -1081,6 +1084,26 @@
     }
   }
 
+  /* Simulated sign flow for an already-signed build: walks the same 4 steps
+     with 5–8s per step, then opens the installer. */
+  function simulateSign(plistUrl){
+    mark('request', 'done');
+    var seq = [
+      { step: 'sign', text: 'Signing ' + currentIpaLabel + ' with "' + currentCertLabel + '"…' },
+      { step: 'manifest', text: 'Creating install manifest (plist)…' },
+      { step: 'install', text: 'Opening the iOS installer…' }
+    ];
+    var i = 0;
+    (function next(){
+      if(dead) return;
+      if(i >= seq.length){ finish(plistUrl); return; }
+      var s = seq[i++];
+      mark(s.step, 'active');
+      note(s.text);
+      setTimeout(next, 5000 + Math.random() * 3000);
+    })();
+  }
+
   function poll(){
     clearTimeout(pollTimer);
     pollTimer = setTimeout(function(){
@@ -1129,7 +1152,7 @@
     installBtn.setAttribute('href', '#');
     certEl.textContent = certLabel;
     appEl.textContent = ipaLabel;
-    titleEl.textContent = 'Installing ' + ipaLabel;
+    titleEl.textContent = 'Sign ' + ipaLabel;
     certPickPane.hidden = true;
     signProgressPane.hidden = false;
     signBack.hidden = false;
@@ -1139,11 +1162,15 @@
       if(dead) return;
       if(res.error) throw new Error(res.error);
       if(res.state === 'complete' && res.reused){
+        // Already signed: play a simulated sign flow (5–8s per step) so the
+        // experience matches a fresh sign, then open the installer.
+        simulateSign(res.plistUrl);
+      } else if(res.state === 'finishing'){
         mark('request', 'done');
         mark('sign', 'done');
-        mark('manifest', 'done');
-        note('This app already has a signed build for this certificate — reusing it.');
-        finish(res.plistUrl);
+        mark('manifest', 'active');
+        note('Signed build found — publishing the install manifest…');
+        poll();
       } else if(res.state === 'running'){
         mark('request', 'done');
         mark('sign', 'active');
