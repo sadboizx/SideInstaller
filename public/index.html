@@ -603,7 +603,7 @@
     <div id="signProgressPane" hidden>
       <p class="sign-cert">Certificate: <b id="signCertName"></b></p>
       <ol class="sign-steps" id="signSteps">
-        <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Requesting sign job</span></li>
+        <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Initializing service (ubuntu-latest)</span></li>
         <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
         <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Creating install manifest (plist)</span></li>
         <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Install signed <b id="signInstallAppName">the app</b>.ipa</span></li>
@@ -1121,7 +1121,7 @@
      sign) so it reads as a live run; the other steps take 1s each. */
   function simulateSign(plistUrl){
     mark('request', 'active');
-    note('Requesting a sign job…');
+    note('Initializing service (ubuntu-latest)...');
     after(1000, function(){
       mark('request', 'done');
       mark('sign', 'active');
@@ -1212,7 +1212,7 @@
     signProgressPane.hidden = false;
     signBack.hidden = false;
     mark('request', 'active');
-    note('Requesting a sign job…');
+    note('Initializing service (ubuntu-latest)...');
     postJSON('/api/sign', { cert: cert, ipa: ipaId }).then(function(res){
       if(dead) return;
       if(res.error) throw new Error(res.error);
