@@ -21,7 +21,7 @@
     "version": "1.6.1",
     "bundleId": "nya.asami.ksign",
     "icon": "Resources/AppIcons/Ksign.PNG",
-    "source": "ksign/ksign.ipa"
+    "source": "ksign/Ksign.ipa"
   },
   {
     "id": "youtube",
