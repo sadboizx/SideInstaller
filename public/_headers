@@ -1,0 +1,12 @@
+# iOS OTA install needs the right MIME types (the Worker set these explicitly;
+# Pages serves static files with its own defaults, so pin them here).
+*.plist
+  Content-Type: application/xml
+*.mobileconfig
+  Content-Type: application/x-apple-aspen-config
+*.mobileprovision
+  Content-Type: application/octet-stream
+*.p12
+  Content-Type: application/x-pkcs12
+*.ipa
+  Content-Type: application/octet-stream
