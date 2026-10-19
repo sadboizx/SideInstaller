@@ -237,7 +237,6 @@
     background:rgba(52,211,153,.08); border:1px solid rgba(52,211,153,.25);
   }
   .callout b{color:var(--good)}
-  .callout b.danger{color:#f87171;font-weight:800}
 
   /* ---- buttons ----
      Base .install-btn styles (used by the DNS button and the modal's
@@ -516,9 +515,9 @@
       </div>
     </div>
     <div class="step-card">
-      <p>That's it. Your signed apps appear on the Home Screen — open them straight from your device. No PC needed.</p>
+      <p>That's it. Open <b>SideInstaller</b> from your Home Screen and use it to install <b>SideStore</b> (or SideStore + LiveContainer), straight from your device. No PC needed.</p>
       <div class="callout">
-        Once an app is installed, <b class="danger">do not turn off or remove the DNS profile</b> — it blocks Apple's revocation servers and keeps your certificates alive. <b class="danger">Do not use a VPN</b>, as VPN traffic bypasses the DNS filter and your apps may get revoked.
+        <b>Once SideStore is installed, the DNS profile is no longer needed.</b> Remove it in <code>Settings → General → VPN &amp; Device Management</code> → <b>SideInstaller</b> → <b>Remove Profile</b> — or keep it and just stop using its DNS by switching <code>DNS</code> back to <b>Automatic</b> in the same menu.
       </div>
     </div>
   </section>
