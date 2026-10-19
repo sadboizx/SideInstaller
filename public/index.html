@@ -236,6 +236,10 @@
     margin-top:16px; padding:13px 16px; border-radius:var(--radius-sm);
     background:rgba(52,211,153,.08); border:1px solid rgba(52,211,153,.25);
   }
+  .callout-warn{
+    background:rgba(248,113,113,.07); border-color:rgba(248,113,113,.3);
+  }
+  .danger{color:var(--bad)}
   .callout b{color:var(--good)}
 
   /* ---- buttons ----
@@ -515,16 +519,16 @@
       </div>
     </div>
     <div class="step-card">
-      <p>That's it. Open <b>SideInstaller</b> from your Home Screen and use it to install <b>SideStore</b> (or SideStore + LiveContainer), straight from your device. No PC needed.</p>
-      <div class="callout">
-        <b>Once SideStore is installed, the DNS profile is no longer needed.</b> Remove it in <code>Settings → General → VPN &amp; Device Management</code> → <b>SideInstaller</b> → <b>Remove Profile</b> — or keep it and just stop using its DNS by switching <code>DNS</code> back to <b>Automatic</b> in the same menu.
+      <p>That's it. Your signed apps appear on the Home Screen — open them straight from your device. No PC needed.</p>
+      <div class="callout callout-warn">
+        Once an app is installed, <b class="danger">do not turn off or remove the DNS profile</b> — it blocks Apple's revocation servers and keeps your certificates alive. <b class="danger">Do not use a VPN</b>, as VPN traffic bypasses the DNS filter and your apps may get revoked.
       </div>
     </div>
   </section>
 
   <footer class="footer">
-    Built automatically &middot; signed with 51 certificate(s), 0 currently valid
-    <br>Last updated: 30 Sep 2026, 18:36 CET
+    Built automatically &middot; <span id="certStats">signed with 51 certificate(s), 0 currently valid</span>
+    <br>Last updated: <span id="lastUpdated">—</span>
     <br><a href="terms.html">Terms of Service</a>
   </footer>
 
@@ -657,13 +661,30 @@
     return fetch('/api/certs', {cache:'no-store'})
       .then(function(r){ if(!r.ok) throw new Error('/api/certs ' + r.status); return r.json(); })
       .then(function(list){
-        if(certCountEl) certCountEl.textContent=String((list||[]).length);
+        list = list || [];
+        if(certCountEl) certCountEl.textContent=String(list.length);
+        var valid = list.filter(function(c){ return c && c.status === 'valid'; }).length;
+        var statsEl = document.getElementById('certStats');
+        if(statsEl) statsEl.textContent = 'signed with ' + list.length + ' certificate(s), ' + valid + ' currently valid';
       })
       .catch(function(err){
         console.error('Failed to load /api/certs', err);
         if(certCountEl) certCountEl.textContent='0';
       });
   }
+
+  /* "Last updated" follows the Production deploy: Pages serves index.html
+     with a Last-Modified header, which document.lastModified reflects. */
+  (function(){
+    var el = document.getElementById('lastUpdated');
+    if(!el) return;
+    var d = new Date(document.lastModified);
+    if(isNaN(d.getTime())) return;
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function pad(n){ return (n<10?'0':'')+n; }
+    el.textContent = d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() +
+      ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  })();
 
   function loadIpas(){
     return fetch('ipas.json', {cache:'no-store'})
