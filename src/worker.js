@@ -9,12 +9,15 @@
  * - Dynamic POST /api/sign endpoint:
  *     Body: { "cert": "<folder name from certificates/index.json>",
  *             "ipa": "<app id from public/ipas.json>" }
- *     Validates both, then dispatches the "Sign IPA" GitHub Actions workflow
- *     (.github/workflows/sign.yml) via the GitHub API.
- *     zsign cannot run on Workers, so signing happens on a GitHub-hosted
- *     Ubuntu runner; the Worker only dispatches the job and polls its status.
- *     Deduplicates: reuses an already-running job, or reuses the last
- *     successful signed build instead of starting a new run.
+ *     1. Fast path: if the GitHub Release <ipa>-signed-<cert> already has the
+ *        signed IPA asset, reuse it immediately — the workflow is NEVER
+ *        dispatched for an already-signed IPA. Returns "complete" when the
+ *        manifest is live, "finishing" while its deploy is pending.
+ *     2. Otherwise: join an in-flight run if one exists, else dispatch the
+ *        "Sign IPA" GitHub Actions workflow (.github/workflows/sign.yml)
+ *        via the GitHub API. zsign cannot run on Workers, so signing happens
+ *        on a GitHub-hosted Ubuntu runner; the Worker only dispatches the job
+ *        and polls its status.
  * - Dynamic GET /api/sign-status?cert=<folder>&ipa=<app id> endpoint:
  *     Polls the newest workflow run for that certificate + app pair and reports:
  *       not_started | running | finishing | complete | failed
@@ -22,11 +25,14 @@
  *     page opens via itms-services:// automatically.
  *
  * Full flow (also described in the UI, "How to install"):
- *   1. User picks a certificate, taps Sign on an app → POST /api/sign {cert, ipa}
- *   2. Worker dispatches the workflow → workflow builds zsign, resolves the
- *      app's IPA (from the repo, or downloads it for remote sources), signs it
- *      with the cert's .p12 + .mobileprovision, uploads the signed IPA to a
- *      GitHub Release, generates public/output/<ipa>-<cert>.plist and commits it.
+ *   1. User taps Sign on an app → picks a certificate card
+ *      → POST /api/sign {cert, ipa}
+ *   2. If already signed → installer opens directly (no workflow).
+ *      Else the Worker dispatches the workflow → workflow builds zsign,
+ *      resolves the app's IPA (from the repo, or downloads it for remote
+ *      sources), signs it with the cert's .p12 + .mobileprovision, uploads
+ *      the signed IPA to a GitHub Release, generates
+ *      public/output/<ipa>-<cert>.plist and commits it.
  *   3. The page polls GET /api/sign-status until the run succeeds and the
  *      manifest is live, then opens
  *      itms-services://?action=download-manifest&url=<manifest>.
@@ -43,6 +49,10 @@
  *      source — either "path/inside/public/x.ipa" or an https:// URL)
  *   2. Put the icon in public/Resources/AppIcons/
  *   3. Deploy → the app appears in the Installation list
+ *
+ * To force a fresh re-sign for an app + cert pair, delete the
+ * <ipa>-signed-<cert> GitHub Release — the next Sign tap will dispatch
+ * a new workflow run.
  */
 
 const MIME = {
@@ -268,8 +278,9 @@ function runAgeMs(run) {
 
 /**
  * POST /api/sign  { cert, ipa }
- * Validates the certificate and the app, then either reuses an
- * in-flight/successful job or dispatches a fresh workflow run.
+ * 1. Fast path: if the release already holds the signed IPA for this
+ *    app + cert pair, reuse it — no workflow is dispatched, ever.
+ * 2. Otherwise join an in-flight run, or dispatch a fresh one.
  */
 async function handleSign(request, env) {
   let body;
@@ -294,35 +305,41 @@ async function handleSign(request, env) {
   const assetName = releaseAssetNameFor(ipa, cert);
   const plistPath = plistPathFor(ipa, cert);
 
-  const alreadyComplete = async () => {
-    const asset = await releaseAsset(env, tag, assetName);
-    if (!asset) return null;
-    return {
-      state: "complete",
-      reused: true,
-      plistUrl: absUrl(request, plistPath),
-      ipaUrl: asset.browser_download_url,
-      tag,
-    };
-  };
-
   try {
-    const run = await latestRunForCert(env, cert, ipa);
+    // ---- Fast path: already signed? Install it directly. ----
+    // The release asset is the ground truth: if it's there, the IPA was
+    // signed for this exact pair — no matter what any workflow run says.
+    const existing = await releaseAsset(env, tag, assetName);
+    if (existing) {
+      const base = {
+        ipaUrl: existing.browser_download_url,
+        tag,
+      };
+      const plistRes = await fetchAsset(env, plistPath);
+      if (plistRes) {
+        return json({
+          state: "complete",
+          reused: true,
+          plistUrl: absUrl(request, plistPath),
+          ...base,
+        });
+      }
+      // Signed IPA exists but its manifest isn't live yet (deploy pending).
+      return json({ state: "finishing", ...base });
+    }
 
+    // ---- No signed build yet: join an in-flight run, else dispatch. ----
+    const run = await latestRunForCert(env, cert, ipa);
     if (run && (run.status === "queued" || run.status === "in_progress")) {
       if (runAgeMs(run) < STALE_AFTER_MS) {
         // Don't start a second expensive run — the page will poll this one.
         return json({ state: "running", runUrl: run.html_url });
       }
       // Stale job: fall through and dispatch a fresh run below.
-    } else if (run && run.status === "completed") {
-      if (run.conclusion === "success") {
-        const done = await alreadyComplete();
-        if (done) return json(done);
-        // Successful run but the release asset is gone → re-dispatch below.
-      }
-      // failed / cancelled / timed_out → allow a fresh dispatch below.
     }
+    // completed (any conclusion) or never run → fresh dispatch below.
+    // A failed run leaves no asset, so the fast path above won't catch it —
+    // exactly the case that deserves a retry.
 
     await gh(env, `/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, {
       method: "POST",
