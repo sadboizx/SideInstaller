@@ -480,7 +480,7 @@
     <div class="step-head">
       <span class="step-num">2</span>
       <div>
-        <h2 class="step-title">Sign</h2>
+        <h2 class="step-title">Signing</h2>
         <p class="step-sub">Pick an app and tap <b>Sign</b>, then choose a certificate — signing is automatic.</p>
       </div>
     </div>
@@ -606,7 +606,7 @@
         <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Requesting sign job</span></li>
         <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
         <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Creating install manifest (plist)</span></li>
-        <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Opening the iOS installer</span></li>
+        <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Install signed <b id="signInstallAppName">the app</b>.ipa</span></li>
       </ol>
       <p class="sign-note" id="signNote" aria-live="polite"></p>
       <div class="sign-actions" id="signActions" hidden>
@@ -909,6 +909,7 @@
   var certPickNote = document.getElementById('certPickNote');
   var certEl = document.getElementById('signCertName');
   var appEl = document.getElementById('signAppName');
+  var installAppEl = document.getElementById('signInstallAppName');
   var noteEl = document.getElementById('signNote');
   var stepsEl = document.getElementById('signSteps');
   var actionsEl = document.getElementById('signActions');
@@ -1081,7 +1082,7 @@
 
   function finish(plistUrl){
     mark('install', 'done');
-    note('Signed with "' + currentCertLabel + '". Opening the iOS installer…');
+    note('Signed with "' + currentCertLabel + '".');
     var itms = 'itms-services://?action=download-manifest&url=' + encodeURIComponent(plistUrl);
     installBtn.setAttribute('href', itms);
     retryBtn.hidden = true;
@@ -1098,19 +1099,19 @@
 
   /* Simulated sign flow for an already-signed build: walks the same 4 steps
      like a fresh sign so the experience matches, then opens the installer.
-     The (zsign · GitHub Actions) step holds for 8–10s and walks through the
+     The (zsign · GitHub Actions) step holds for 8s and walks through the
      real sub-stages of the workflow so it reads as a live run; the other
-     steps take 0.5s each. */
+     steps take 1s each. */
   function simulateSign(plistUrl){
     mark('request', 'active');
     note('Requesting a sign job…');
-    after(500, function(){
+    after(1000, function(){
       mark('request', 'done');
       mark('sign', 'active');
       /* Mirror the real "Sign IPA" workflow (sign.yml): queue a runner,
-         build zsign, then sign the IPA. The step total is 8–10s, split
+         build zsign, then sign the IPA. The step total is 8s, split
          across the stages. */
-      var signMs = 8000 + Math.random() * 2000;
+      var signMs = 8000;
       var stages = [
         'Queued on GitHub Actions runner (ubuntu-latest)…',
         'Building zsign from source…',
@@ -1124,11 +1125,11 @@
           mark('sign', 'done');
           mark('manifest', 'active');
           note('Creating install manifest (plist)…');
-          after(500, function(){
+          after(1000, function(){
             mark('manifest', 'done');
             mark('install', 'active');
-            note('Opening the iOS installer…');
-            after(500, function(){
+            note('Install signed ' + currentIpaLabel + '.ipa…');
+            after(1000, function(){
               finish(plistUrl);
             });
           });
@@ -1188,7 +1189,8 @@
     installBtn.setAttribute('href', '#');
     certEl.textContent = certLabel;
     appEl.textContent = ipaLabel;
-    titleEl.textContent = 'Sign ' + ipaLabel;
+    if(installAppEl) installAppEl.textContent = ipaLabel;
+    titleEl.textContent = ipaLabel;
     certPickPane.hidden = true;
     signProgressPane.hidden = false;
     signBack.hidden = false;
@@ -1198,7 +1200,7 @@
       if(dead) return;
       if(res.error) throw new Error(res.error);
       if(res.state === 'complete' && res.reused){
-        // Already signed: play a simulated sign flow (5–8s per step) so the
+        // Already signed: play a simulated sign flow so the
         // experience matches a fresh sign, then open the installer.
         simulateSign(res.plistUrl);
       } else if(res.state === 'finishing'){
