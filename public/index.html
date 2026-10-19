@@ -1117,8 +1117,8 @@
   /* Simulated sign flow for an already-signed build: walks the same 4 steps
      like a fresh sign so the experience matches, then opens the installer.
      The (zsign · GitHub Actions) step holds for 8s and walks through the
-     real sub-stages of the workflow so it reads as a live run; the other
-     steps take 1s each. */
+     real sub-stages of the workflow (queue, build zsign, PPQ Protection,
+     sign) so it reads as a live run; the other steps take 1s each. */
   function simulateSign(plistUrl){
     mark('request', 'active');
     note('Requesting a sign job…');
@@ -1132,6 +1132,7 @@
       var stages = [
         'Queued on GitHub Actions runner (ubuntu-latest)…',
         'Building zsign from source…',
+        'Applying PPQ Protection…',
         'Signing ' + currentIpaLabel + ' with zsign…'
       ];
       var per = signMs / stages.length;
