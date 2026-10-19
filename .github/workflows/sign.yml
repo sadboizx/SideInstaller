@@ -8,12 +8,22 @@
 #   1. Validate certificate (phải có trong public/certificates/index.json)
 #   2. Resolve app từ public/ipas.json → IPA trong repo, hoặc download
 #      nếu source là URL ngoài (ví dụ YouTube)
-#   3. Build zsign từ source (https://github.com/zhlynn/zsign)
+#   3. PPQ Protection (port từ Feather): đọc key `PPQCheck` trong provision
+#      (giống Feather đọc CertificateModel.PPQCheck) — chỉ bỏ qua khi key
+#      này là false. Khi áp dụng: append hậu tố 6 ký tự (ổn định theo từng
+#      cặp app + cert, thay vì random như Feather) vào CFBundleIdentifier
+#      của app chính; các appex plugin được replace old-id -> new-id trong
+#      4 key mà Feather xử lý (CFBundleIdentifier,
+#      WKCompanionAppBundleIdentifier,
+#      NSExtension.NSExtensionAttributes.WKAppBundleIdentifier,
+#      NSExtension.NSExtensionFileProviderDocumentGroup) — rồi mới sign.
+#   4. Build zsign từ source (https://github.com/zhlynn/zsign)
 #   4. Sign IPA bằng .p12 + .mobileprovision của cert → signed.ipa
 #   5. Upload IPA đã sign lên GitHub Release (tag <ipa>-signed-<cert>)
 #   6. Sinh public/output/<ipa>-<cert>.plist (OTA manifest), key `url`
-#      trỏ vào release asset
-#   7. Commit plist → Worker auto-redeploy → manifest lên sóng tại
+#      trỏ vào release asset (bundle-identifier trong manifest được đọc từ
+#      IPA đã sign nên tự khớp với bundle id đã qua PPQ)
+#   7. Commit plist → Pages auto-redeploy → manifest lên sóng tại
 #      https://<site>/output/<ipa>-<cert>.plist
 #
 # Repository secrets cần thiết (Settings → Secrets and variables → Actions):
@@ -141,6 +151,150 @@ jobs:
               f.write(f"plist=public/output/{ipa_id}-{safe}.plist\n")
           PYEOF
 
+      - name: Apply PPQ Protection (Feather-style)
+        id: ppq
+        env:
+          IPA_ID: ${{ steps.ipa.outputs.ipa_id }}
+          CERT: ${{ steps.prep.outputs.cert }}
+          IPA_SRC: ${{ steps.ipa.outputs.ipa_path }}
+          PROV: ${{ steps.prep.outputs.mobileprovision }}
+        run: |
+          python3 - <<'PYEOF'
+          # PPQ Protection, ported from Feather (khcrysalis/Feather):
+          #  - Feather/Backend/Observable/OptionsManager.swift: `ppqProtection`
+          #    appends `ppqString` (6 random chars) to the bundle identifier.
+          #  - Feather/Views/Signing/SigningView.swift: it only kicks in when
+          #    the certificate's provision has `PPQCheck == true`.
+          #  - Feather/Utilities/Handlers/SigningHandler.swift: the new id is
+          #    written to the main Info.plist, and plugin Info.plists get an
+          #    old-id -> new-id replacement in CFBundleIdentifier,
+          #    WKCompanionAppBundleIdentifier,
+          #    NSExtension.NSExtensionAttributes.WKAppBundleIdentifier and
+          #    NSExtension.NSExtensionFileProviderDocumentGroup.
+          # Adaptations for this pipeline:
+          #  - Suffix is deterministic per (app, cert) pair (sha256 hex[:6])
+          #    instead of random-per-device: Feather persists ppqString per
+          #    device, and here one signed build serves every user, so a
+          #    stable suffix keeps updates/reinstalls on the same bundle id.
+          #  - Our provisions have no PPQCheck key (older enterprise style):
+          #    apply unless the key is explicitly false.
+          import hashlib, os, plistlib, shutil, sys, zipfile
+
+          ipa_id = os.environ["IPA_ID"]
+          cert = os.environ["CERT"]
+          src = os.environ["IPA_SRC"]
+          prov_path = os.environ["PROV"]
+          work = "ppq_unsigned.ipa"
+          shutil.copyfile(src, work)
+
+          def out(**kv):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                  for k, v in kv.items():
+                      f.write(f"{k}={v}\n")
+
+          # 1. Read PPQCheck from the provision, like Feather's CertificateModel.
+          raw = open(prov_path, "rb").read()
+          s, e = raw.find(b"<?xml"), raw.find(b"</plist>")
+          if s < 0 or e < 0:
+              print("::warning::Could not parse mobileprovision — skipping PPQ Protection")
+              out(ipa_path=src, applied="false", suffix="", ppqcheck="unknown")
+              sys.exit(0)
+          xml = plistlib.loads(raw[s:e + len(b"</plist>")])
+          ppq_check = xml.get("PPQCheck", None)
+          print(f"PPQCheck in provision: {ppq_check!r}")
+          if ppq_check is False:
+              print("PPQCheck=false — skipping PPQ Protection")
+              out(ipa_path=src, applied="false", suffix="", ppqcheck="false")
+              sys.exit(0)
+
+          # 2. Compute the new bundle id.
+          suffix = hashlib.sha256(f"{ipa_id}:{cert}".encode()).hexdigest()[:6]
+
+          def find_plists(names):
+              main, plugins = None, []
+              for n in names:
+                  p = n.split("/")
+                  if len(p) == 3 and p[0] == "Payload" and p[1].endswith(".app") and p[2] == "Info.plist":
+                      main = n
+                  elif (len(p) == 5 and p[0] == "Payload" and p[1].endswith(".app")
+                        and p[2] == "PlugIns" and p[3].endswith(".appex") and p[4] == "Info.plist"):
+                      plugins.append(n)
+              return main, plugins
+
+          with zipfile.ZipFile(work, "r") as zin:
+              names = zin.namelist()
+          main_plist, plugin_plists = find_plists(names)
+          if not main_plist:
+              print("::warning::Main Info.plist not found — skipping PPQ Protection")
+              out(ipa_path=src, applied="false", suffix="", ppqcheck=str(ppq_check))
+              sys.exit(0)
+
+          with zipfile.ZipFile(work, "r") as zin:
+              main_info = plistlib.loads(zin.read(main_plist))
+          old_main = main_info.get("CFBundleIdentifier", "")
+          if not old_main:
+              print("::warning::No CFBundleIdentifier in main Info.plist — skipping PPQ Protection")
+              out(ipa_path=src, applied="false", suffix="", ppqcheck=str(ppq_check))
+              sys.exit(0)
+          new_main = old_main if old_main.endswith("." + suffix) else f"{old_main}.{suffix}"
+
+          # 3. Rewrite the IPA: main Info.plist gets the new id; plugins get
+          #    an old-id -> new-id replacement (Feather-style).
+          def patch_plugin(info):
+              changed = []
+              def rep(key):
+                  v = info.get(key)
+                  if isinstance(v, str) and old_main in v:
+                      nv = v.replace(old_main, new_main)
+                      if nv != v:
+                          info[key] = nv
+                          changed.append((key, v, nv))
+              rep("CFBundleIdentifier")
+              rep("WKCompanionAppBundleIdentifier")
+              ext = info.get("NSExtension")
+              if isinstance(ext, dict):
+                  attrs = ext.get("NSExtensionAttributes")
+                  if isinstance(attrs, dict):
+                      v = attrs.get("WKAppBundleIdentifier")
+                      if isinstance(v, str) and old_main in v:
+                          nv = v.replace(old_main, new_main)
+                          if nv != v:
+                              attrs["WKAppBundleIdentifier"] = nv
+                              changed.append(("NSExtension.WKAppBundleIdentifier", v, nv))
+                  v = ext.get("NSExtensionFileProviderDocumentGroup")
+                  if isinstance(v, str) and old_main in v:
+                      nv = v.replace(old_main, new_main)
+                      if nv != v:
+                          ext["NSExtensionFileProviderDocumentGroup"] = nv
+                          changed.append(("NSExtension.NSExtensionFileProviderDocumentGroup", v, nv))
+              return changed
+
+          patched_plugins = []
+          tmp = "ppq_new.ipa"
+          with zipfile.ZipFile(work, "r") as zin:
+              with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+                  for item in zin.infolist():
+                      data = zin.read(item.filename)
+                      if item.filename == main_plist:
+                          info = plistlib.loads(data)
+                          info["CFBundleIdentifier"] = new_main
+                          data = plistlib.dumps(info)
+                      elif item.filename in plugin_plists:
+                          info = plistlib.loads(data)
+                          changed = patch_plugin(info)
+                          if changed:
+                              data = plistlib.dumps(info)
+                              patched_plugins.append((item.filename, changed))
+                      zout.writestr(item, data)
+          shutil.move(tmp, work)
+
+          print(f"PPQ [main]: {old_main} -> {new_main}")
+          for pname, changed in patched_plugins:
+              for key, v, nv in changed:
+                  print(f"PPQ [plugin {pname}] {key}: {v} -> {nv}")
+          out(ipa_path=work, applied="true", suffix=suffix, ppqcheck=str(ppq_check))
+          PYEOF
+
       - name: Build zsign from source
         run: |
           set -euo pipefail
@@ -161,7 +315,7 @@ jobs:
           if [ -n "${P12_PASS:-}" ]; then
             args+=(-p "$P12_PASS")
           fi
-          args+=("${{ steps.ipa.outputs.ipa_path }}")
+          args+=("${{ steps.ppq.outputs.ipa_path }}")
           "$ZSIGN_BIN" "${args[@]}"
           ls -lh signed.ipa
 
@@ -285,4 +439,9 @@ jobs:
             echo "- Release tag: \`${{ steps.ipa.outputs.tag }}\`"
             echo "- Manifest: \`${{ steps.ipa.outputs.plist }}\`"
             echo "- Bundle ID: \`${{ steps.bundle.outputs.bundle_id }}\`"
+            if [ "${{ steps.ppq.outputs.applied }}" = "true" ]; then
+              echo "- PPQ Protection: applied (\`.${{ steps.ppq.outputs.suffix }}\`, PPQCheck=${{ steps.ppq.outputs.ppqcheck }})"
+            else
+              echo "- PPQ Protection: skipped (PPQCheck=${{ steps.ppq.outputs.ppqcheck }})"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
