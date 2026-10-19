@@ -911,6 +911,11 @@
      3. This page polls GET /api/sign-status?cert=...&ipa=... until the run
         succeeds and the manifest is live, then opens
         itms-services://?action=download-manifest&url=<manifest> automatically.
+   Cancelling (Back, tapping outside the modal, the × button, or Escape)
+   stops everything: killSignFlow() bumps a generation token so late timers
+   and fetch callbacks from the old flow ignore themselves, aborts the
+   in-flight request, and clears the poll timer — no stale UI updates and no
+   surprise auto-open of the installer after the user backed out.
    No PC, no manual signing, no pre-made IPA per certificate. */
 (function(){
   var POLL_MS = 10000;
@@ -936,17 +941,25 @@
   var ORDER = ['request','sign','manifest','install'];
   var pollTimer = null;
   var dead = false;
+  /* Generation token: bumped on every cancel / new flow, so late timers and
+     fetch callbacks from a superseded flow ignore themselves instead of
+     corrupting the new one. */
+  var signGen = 0;
+  /* AbortController for the current in-flight sign request, so cancelling
+     actually stops the network call too. */
+  var signAbort = null;
   var currentIpa = '', currentIpaLabel = '';
   var currentCert = '', currentCertLabel = '';
   var startedAt = 0, autoOpened = false;
   var certsCache = null;
 
-  function postJSON(url, data){
+  function postJSON(url, data, signal){
     return fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-      cache: 'no-store'
+      cache: 'no-store',
+      signal: signal
     }).then(function(r){
       return r.json().then(function(j){
         if(!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
@@ -954,8 +967,8 @@
       });
     });
   }
-  function getJSON(url){
-    return fetch(url, { cache: 'no-store' }).then(function(r){
+  function getJSON(url, signal){
+    return fetch(url, { cache: 'no-store', signal: signal }).then(function(r){
       return r.json().then(function(j){
         if(!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
         return j;
@@ -999,9 +1012,19 @@
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
   }
-  function closeModal(){
-    dead = true;
+  /* Stop everything the current sign flow is doing: bump the generation so
+     late timers / fetch callbacks from the old flow ignore themselves,
+     abort the in-flight request (a cancelled POST /api/sign should not
+     dispatch a workflow nobody wants any more), and clear the poll timer. */
+  function killSignFlow(){
+    signGen++;
+    if(signAbort){ try{ signAbort.abort(); }catch(_){} signAbort = null; }
     clearTimeout(pollTimer);
+    pollTimer = null;
+    dead = true;
+  }
+  function closeModal(){
+    killSignFlow();
     modal.hidden = true;
     document.body.style.overflow = '';
   }
@@ -1071,8 +1094,7 @@
   function openCertPicker(ipaId, ipaLabel){
     currentIpa = ipaId;
     currentIpaLabel = ipaLabel;
-    dead = true;
-    clearTimeout(pollTimer);
+    killSignFlow(); // stop the running sign flow before showing the picker
     dead = false;
     signAppNamePick.textContent = ipaLabel;
     titleEl.textContent = 'Choose certificate';
@@ -1097,7 +1119,8 @@
     actionsEl.hidden = false;
   }
 
-  function finish(plistUrl){
+  function finish(plistUrl, gen){
+    if(gen !== signGen || dead) return; // flow was cancelled — don't touch the UI
     mark('install', 'done');
     note('Signed with "' + currentCertLabel + '".');
     var itms = 'itms-services://?action=download-manifest&url=' + encodeURIComponent(plistUrl);
@@ -1106,12 +1129,13 @@
     actionsEl.hidden = false;
     if(!autoOpened){
       autoOpened = true;
-      setTimeout(function(){ if(!dead) window.location.href = itms; }, 1500);
+      setTimeout(function(){ if(gen === signGen && !dead) window.location.href = itms; }, 1500);
     }
   }
 
   function after(ms, fn){
-    setTimeout(function(){ if(!dead) fn(); }, ms);
+    var gen = signGen;
+    setTimeout(function(){ if(gen === signGen && !dead) fn(); }, ms);
   }
 
   /* Simulated sign flow for an already-signed build: walks the same 4 steps
@@ -1120,6 +1144,7 @@
      real sub-stages of the workflow (queue, build zsign, sign) so it reads
      as a live run; the other steps take 1s each. */
   function simulateSign(plistUrl){
+    var gen = signGen;
     mark('request', 'active');
     note('Preparing to sign (ubuntu-latest)…');
     after(1000, function(){
@@ -1137,7 +1162,7 @@
       var per = signMs / stages.length;
       var si = 0;
       (function stage(){
-        if(dead) return;
+        if(gen !== signGen || dead) return;
         if(si >= stages.length){
           mark('sign', 'done');
           mark('manifest', 'active');
@@ -1147,7 +1172,7 @@
             mark('install', 'active');
             note('Install signed ' + currentIpaLabel + '.ipa…');
             after(1000, function(){
-              finish(plistUrl);
+              finish(plistUrl, gen);
             });
           });
           return;
@@ -1160,14 +1185,18 @@
 
   function poll(){
     clearTimeout(pollTimer);
+    pollTimer = null;
+    var gen = signGen;
     pollTimer = setTimeout(function(){
-      if(dead) return;
+      if(gen !== signGen || dead) return;
       if(Date.now() - startedAt > MAX_WAIT_MS){
         fail('Timed out waiting for the sign job (30 min). Please try again.');
         return;
       }
-      getJSON('/api/sign-status?cert=' + encodeURIComponent(currentCert) + '&ipa=' + encodeURIComponent(currentIpa)).then(function(res){
-        if(dead) return;
+      var ctl = new AbortController();
+      signAbort = ctl;
+      getJSON('/api/sign-status?cert=' + encodeURIComponent(currentCert) + '&ipa=' + encodeURIComponent(currentIpa), ctl.signal).then(function(res){
+        if(gen !== signGen || dead) return;
         if(res.state === 'running'){
           note('Signing ' + currentIpaLabel + ' with zsign… (' + elapsed() + ' elapsed)');
           poll();
@@ -1178,15 +1207,16 @@
         } else if(res.state === 'complete'){
           mark('sign', 'done');
           mark('manifest', 'done');
-          finish(res.plistUrl);
+          finish(res.plistUrl, gen);
         } else if(res.state === 'failed'){
           fail(res.error || 'The sign job failed. Try again or pick another certificate.');
         } else {
           note('Waiting for the sign job to start…');
           poll();
         }
-      }).catch(function(){
-        if(dead) return;
+      }).catch(function(err){
+        if(gen !== signGen || dead) return;
+        if(err && err.name === 'AbortError') return; // cancelled — stay silent
         note('Connection hiccup — retrying…');
         poll();
       });
@@ -1195,7 +1225,10 @@
 
   function startSign(ipaId, ipaLabel, cert, certLabel){
     if(!cert) return;
+    killSignFlow(); // stop anything still running from a previous attempt
     dead = false;
+    var gen = signGen;
+    signAbort = new AbortController();
     autoOpened = false;
     currentIpa = ipaId; currentIpaLabel = ipaLabel;
     currentCert = cert; currentCertLabel = certLabel;
@@ -1213,8 +1246,8 @@
     signBack.hidden = false;
     mark('request', 'active');
     note('Preparing to sign (ubuntu-latest)…');
-    postJSON('/api/sign', { cert: cert, ipa: ipaId }).then(function(res){
-      if(dead) return;
+    postJSON('/api/sign', { cert: cert, ipa: ipaId }, signAbort.signal).then(function(res){
+      if(gen !== signGen || dead) return;
       if(res.error) throw new Error(res.error);
       if(res.state === 'complete' && res.reused){
         // Already signed: play a simulated sign flow so the
@@ -1240,7 +1273,9 @@
         throw new Error('Unexpected response from the server.');
       }
     }).catch(function(err){
-      if(!dead) fail(err && err.message ? err.message : 'Could not start the sign job.');
+      if(gen !== signGen || dead) return;
+      if(err && err.name === 'AbortError') return; // user cancelled — stay silent
+      fail(err && err.message ? err.message : 'Could not start the sign job.');
     });
   }
 
