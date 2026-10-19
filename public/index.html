@@ -238,6 +238,22 @@
   }
   .callout b{color:var(--good)}
 
+  /* ---- buttons ----
+     Base .install-btn styles (used by the DNS button and the modal's
+     "Install now"). Kept separate from card styles so removing one
+     section never breaks the buttons again. */
+  .install-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:13px 16px; font-size:15px; font-weight:700; text-decoration:none; color:#fff;
+    border-radius:var(--radius-btn);
+    background:var(--brand);
+    box-shadow:0 8px 24px rgba(33,112,245,.4);
+    transition:transform .14s, box-shadow .14s, filter .14s;
+  }
+  .install-btn svg{width:17px; height:17px}
+  .install-btn:hover{filter:brightness(1.08); box-shadow:0 12px 30px rgba(77,173,255,.45)}
+  .install-btn:active{transform:scale(.97)}
+
   /* ---- TOS gate ----
      Downloads stay dimmed and non-interactive until the box is ticked. */
   .tos-gate{
@@ -261,30 +277,13 @@
   .tos-text a{color:var(--accent2); text-decoration:none; font-weight:600}
   .tos-text a:hover{text-decoration:underline}
 
-  /* ---- certificate picker (replaces the search box + sort dropdown) ---- */
-  .cert-picker{margin:0 0 14px}
-  .cert-picker > label{
-    display:block; margin:0 0 8px; font-size:12.5px; font-weight:800;
-    letter-spacing:.05em; text-transform:uppercase; color:var(--faint);
-  }
-  .cert-select{
-    width:100%; padding:14px 42px 14px 16px; font-size:15px; font-weight:600; font-family:inherit;
-    color:var(--text); cursor:pointer; outline:none;
-    background:var(--card) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ba3b8' stroke-width='2.5' stroke-linecap='round'><path d='M6 9l6 6 6-6'/></svg>") no-repeat right 16px center;
-    border:1px solid var(--stroke); border-radius:var(--radius-sm);
-    appearance:none; -webkit-appearance:none;
-    transition:border-color .15s, background-color .15s;
-  }
-  .cert-select:focus{border-color:var(--accent); background-color:var(--card-hover)}
-  .cert-select option{background:#0d1530; color:var(--text)}
-
-  /* ---- IPA list (replaces the certificate cards) ----
-     One row per signable app: icon, name + version/bundle id, Sign button. */
+  /* ---- IPA list ----
+     One dark row per signable app: icon, name + version/bundle id, Sign button. */
   .ipa-list{display:flex; flex-direction:column; transition:opacity .25s, filter .25s}
   .ipa-list.locked{opacity:.4; filter:saturate(.6); pointer-events:none}
   .ipa-row{
     display:flex; align-items:center; gap:16px; padding:14px 16px;
-    background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius);
+    background:rgba(4,8,20,.92); border:1px solid var(--stroke-strong); border-radius:var(--radius);
     -webkit-backdrop-filter:blur(20px) saturate(140%); backdrop-filter:blur(20px) saturate(140%);
   }
   .ipa-row + .ipa-row{margin-top:12px}
@@ -301,19 +300,42 @@
   }
   .sign-btn{
     flex:none; padding:12px 26px; font-size:16px; font-weight:700; font-family:inherit;
-    color:#c4b0f5; background:rgba(255,255,255,.07);
+    color:#fff; background:var(--brand);
     border:0; border-radius:999px; cursor:pointer;
-    transition:background .14s, transform .14s, opacity .14s;
+    box-shadow:0 6px 18px rgba(33,112,245,.35);
+    transition:filter .14s, transform .14s;
   }
-  .sign-btn:hover{background:rgba(255,255,255,.13)}
+  .sign-btn:hover{filter:brightness(1.1)}
   .sign-btn:active{transform:scale(.95)}
-  .sign-btn:disabled{opacity:.35; cursor:default}
   .ipa-error{color:var(--muted); font-size:14px; text-align:center; padding:24px 0}
 
+  /* ---- certificate cards (inside the sign modal) ----
+     Shown after tapping Sign on an app; tapping a card starts the sign. */
+  .cert-cards{
+    display:flex; flex-direction:column; gap:10px;
+    max-height:min(52vh,420px); overflow-y:auto; -webkit-overflow-scrolling:touch;
+  }
+  .cert-card{
+    display:flex; align-items:center; gap:12px; width:100%; padding:14px 16px;
+    text-align:left; font-family:inherit; color:var(--text); cursor:pointer;
+    background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius-sm);
+    transition:background .14s, border-color .14s, transform .14s;
+  }
+  .cert-card:hover{background:var(--card-hover); border-color:var(--stroke-strong)}
+  .cert-card:active{transform:scale(.98)}
+  .cert-card-info{flex:1; min-width:0}
+  .cert-card-name{margin:0; font-size:15px; font-weight:700; word-break:break-word; overflow-wrap:anywhere}
+  .cert-card-meta{margin:3px 0 0; font-size:12.5px; color:var(--faint)}
+  .days{font-weight:600}
+  .days.good{color:var(--good)}
+  .days.warn{color:var(--warn)}
+  .days.bad{color:var(--bad)}
+  .cert-card-chev{flex:none; font-size:22px; font-weight:300; color:var(--faint)}
+
   /* ---- sign progress modal ----
-     Shown after tapping Sign on an app: the IPA is signed with the chosen
-     certificate on GitHub Actions (zsign), then the install manifest (plist)
-     is built and the iOS installer opens automatically. */
+     Shown after picking a certificate: the IPA is signed with it on GitHub
+     Actions (zsign), then the install manifest (plist) is built and the iOS
+     installer opens automatically. */
   .sign-cert{margin:0 0 14px; color:var(--muted); font-size:14px}
   .sign-cert b{color:var(--text)}
   .sign-steps{list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:10px}
@@ -447,7 +469,7 @@
       <span class="step-num">2</span>
       <div>
         <h2 class="step-title">Installation</h2>
-        <p class="step-sub">Pick an app, choose a certificate, tap <b>Sign</b> — signing is automatic.</p>
+        <p class="step-sub">Pick an app and tap <b>Sign</b>, then choose a certificate — signing is automatic.</p>
       </div>
     </div>
 
@@ -456,13 +478,6 @@
       <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span>
       <span class="tos-text">I have read and accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>.</span>
     </label>
-
-    <div class="cert-picker">
-      <label for="certSelect">Certificate</label>
-      <select id="certSelect" class="cert-select" aria-label="Choose a certificate">
-        <option value="">Loading certificates…</option>
-      </select>
-    </div>
 
     <main id="ipaList" class="ipa-list">
       <!-- app rows rendered from ipas.json -->
@@ -473,8 +488,8 @@
       <div class="howto-body">
         <ol>
           <li>Open this page <b>on your iPhone or iPad in Safari</b>.</li>
-          <li>Choose a <b>certificate</b> from the dropdown list.</li>
           <li>Pick an app below and tap <b>Sign</b>.</li>
+          <li>Choose a <b>certificate</b> from the list.</li>
           <li><b>Signing happens automatically:</b> the app's IPA is signed with your certificate using zsign on GitHub Actions (zsign can't run on Cloudflare Workers, so the heavy work happens there), then the install manifest is built — you just wait and watch the progress.</li>
           <li>When the manifest is ready, the iOS installer opens by itself. Confirm the prompt and wait for the app on your Home Screen.</li>
           <li>Go to <code>Settings → General → VPN &amp; Device Management</code>, tap the developer profile, and <b>Trust</b> it.</li>
@@ -558,30 +573,42 @@
   </div>
 </div>
 
-<!-- Sign progress modal: pick app + certificate → auto sign (GitHub Actions + zsign) → manifest → itms-services -->
+<!-- Sign modal: 1) pick a certificate card → 2) auto sign (GitHub Actions + zsign) → manifest → itms-services -->
 <div class="modal" id="signModal" role="dialog" aria-modal="true" aria-labelledby="signTitle" hidden>
   <div class="modal-backdrop" data-sign-close></div>
   <div class="modal-card">
     <div class="modal-head">
-      <h3 class="modal-title" id="signTitle">Installing</h3>
+      <button type="button" class="modal-back" id="signBack" aria-label="Back" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <h3 class="modal-title" id="signTitle">Choose certificate</h3>
       <button type="button" class="modal-close" data-sign-close aria-label="Close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
-    <p class="sign-cert">Certificate: <b id="signCertName"></b></p>
-    <ol class="sign-steps" id="signSteps">
-      <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Requesting sign job</span></li>
-      <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
-      <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Creating install manifest (plist)</span></li>
-      <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Opening the iOS installer</span></li>
-    </ol>
-    <p class="sign-note" id="signNote" aria-live="polite"></p>
-    <div class="sign-actions" id="signActions" hidden>
-      <a class="install-btn" id="signInstallNow" href="#">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
-        Install now
-      </a>
-      <button type="button" id="signRetry" hidden>Try again</button>
+
+    <div id="certPickPane">
+      <p class="sign-cert">Signing: <b id="signAppNamePick"></b></p>
+      <div class="cert-cards" id="certCards"></div>
+      <p class="sign-note" id="certPickNote"></p>
+    </div>
+
+    <div id="signProgressPane" hidden>
+      <p class="sign-cert">Certificate: <b id="signCertName"></b></p>
+      <ol class="sign-steps" id="signSteps">
+        <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Requesting sign job</span></li>
+        <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
+        <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Creating install manifest (plist)</span></li>
+        <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Opening the iOS installer</span></li>
+      </ol>
+      <p class="sign-note" id="signNote" aria-live="polite"></p>
+      <div class="sign-actions" id="signActions" hidden>
+        <a class="install-btn" id="signInstallNow" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
+          Install now
+        </a>
+        <button type="button" id="signRetry" hidden>Try again</button>
+      </div>
     </div>
   </div>
 </div>
@@ -589,20 +616,7 @@
 <script>
 (function(){
   var ipaList=document.getElementById('ipaList');
-  var certSelect=document.getElementById('certSelect');
   var certCountEl=document.getElementById('certCount');
-
-  function daysLabel(d){
-    if(d <= -999999) return 'expiry unknown';
-    if(d < 0) return Math.abs(d) + ' days expired';
-    return d + ' days left';
-  }
-
-  function updateSignButtons(){
-    var ok = certSelect.options.length > 0 && certSelect.value !== '';
-    var btns = ipaList.querySelectorAll('.sign-btn');
-    for(var i=0;i<btns.length;i++){ btns[i].disabled = !ok; }
-  }
 
   function renderIpaRow(app){
     var row=document.createElement('div');
@@ -627,7 +641,6 @@
     btn.setAttribute('data-ipa', app.id);
     btn.setAttribute('data-label', app.name);
     btn.textContent='Sign';
-    btn.disabled=true;
 
     row.appendChild(icon); row.appendChild(info); row.appendChild(btn);
     return row;
@@ -637,24 +650,11 @@
     return fetch('/api/certs', {cache:'no-store'})
       .then(function(r){ if(!r.ok) throw new Error('/api/certs ' + r.status); return r.json(); })
       .then(function(list){
-        certSelect.innerHTML='';
-        (list||[]).forEach(function(c){
-          var opt=document.createElement('option');
-          opt.value=c.folder || c.displayName || c.name || '';
-          opt.textContent=(c.displayName || c.name || '') + ' — ' + daysLabel(c.days != null ? c.days : -999999);
-          certSelect.appendChild(opt);
-        });
         if(certCountEl) certCountEl.textContent=String((list||[]).length);
-        updateSignButtons();
       })
       .catch(function(err){
         console.error('Failed to load /api/certs', err);
-        certSelect.innerHTML='';
-        var opt=document.createElement('option');
-        opt.value=''; opt.textContent='Could not load certificates';
-        certSelect.appendChild(opt);
         if(certCountEl) certCountEl.textContent='0';
-        updateSignButtons();
       });
   }
 
@@ -666,7 +666,6 @@
         (ipas||[]).forEach(function(app){
           ipaList.appendChild(renderIpaRow(app));
         });
-        updateSignButtons();
       })
       .catch(function(err){
         console.error('Failed to load ipas.json', err);
@@ -674,7 +673,6 @@
       });
   }
 
-  certSelect.addEventListener('change', updateSignButtons);
   loadCerts();
   loadIpas();
 
@@ -871,7 +869,8 @@
 
 <script>
 /* ---- Sign + Install flow ----
-   Tapping Sign on an app runs the whole pipeline for the chosen certificate:
+   Tapping Sign on an app opens the certificate picker (cards). Tapping a
+   certificate starts the whole pipeline for that pair:
      1. POST /api/sign {cert, ipa} — the Worker validates the certificate
         against certificates/index.json and the app against public/ipas.json,
         then dispatches the "Sign IPA" GitHub Actions workflow (zsign cannot
@@ -891,6 +890,12 @@
 
   var modal = document.getElementById('signModal');
   var titleEl = document.getElementById('signTitle');
+  var signBack = document.getElementById('signBack');
+  var certPickPane = document.getElementById('certPickPane');
+  var signProgressPane = document.getElementById('signProgressPane');
+  var signAppNamePick = document.getElementById('signAppNamePick');
+  var certCards = document.getElementById('certCards');
+  var certPickNote = document.getElementById('certPickNote');
   var certEl = document.getElementById('signCertName');
   var appEl = document.getElementById('signAppName');
   var noteEl = document.getElementById('signNote');
@@ -898,7 +903,6 @@
   var actionsEl = document.getElementById('signActions');
   var installBtn = document.getElementById('signInstallNow');
   var retryBtn = document.getElementById('signRetry');
-  var certSelect = document.getElementById('certSelect');
 
   var ORDER = ['request','sign','manifest','install'];
   var pollTimer = null;
@@ -906,6 +910,7 @@
   var currentIpa = '', currentIpaLabel = '';
   var currentCert = '', currentCertLabel = '';
   var startedAt = 0, autoOpened = false;
+  var certsCache = null;
 
   function postJSON(url, data){
     return fetch(url, {
@@ -927,6 +932,17 @@
         return j;
       });
     });
+  }
+
+  function daysClass(d){
+    if(d <= -999999 || d < 0) return 'bad';
+    if(d < 30) return 'warn';
+    return 'good';
+  }
+  function daysLabel(d){
+    if(d <= -999999) return 'expiry unknown';
+    if(d < 0) return Math.abs(d) + ' days expired';
+    return d + ' days left';
   }
 
   function resetSteps(){
@@ -960,6 +976,87 @@
     modal.hidden = true;
     document.body.style.overflow = '';
   }
+
+  /* ---- certificate picker pane ---- */
+
+  function renderCertCard(c){
+    var val = c.folder || c.displayName || c.name || '';
+    var label = c.displayName || c.name || '';
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cert-card';
+
+    var info = document.createElement('div');
+    info.className = 'cert-card-info';
+    var name = document.createElement('p');
+    name.className = 'cert-card-name';
+    name.textContent = label;
+    var meta = document.createElement('p');
+    meta.className = 'cert-card-meta';
+    var d = (c.days != null ? c.days : -999999);
+    if(c.expires){ meta.appendChild(document.createTextNode('Expires ' + c.expires + ' · ')); }
+    var span = document.createElement('span');
+    span.className = 'days ' + daysClass(d);
+    span.textContent = daysLabel(d);
+    meta.appendChild(span);
+    info.appendChild(name);
+    info.appendChild(meta);
+
+    var chev = document.createElement('span');
+    chev.className = 'cert-card-chev';
+    chev.setAttribute('aria-hidden', 'true');
+    chev.textContent = '›';
+
+    b.appendChild(info);
+    b.appendChild(chev);
+    b.addEventListener('click', function(){
+      startSign(currentIpa, currentIpaLabel, val, label);
+    });
+    return b;
+  }
+
+  function renderCertCards(list){
+    certCards.innerHTML = '';
+    certPickNote.textContent = '';
+    if(!list.length){
+      certPickNote.textContent = 'No certificates available.';
+      return;
+    }
+    list.forEach(function(c){
+      certCards.appendChild(renderCertCard(c));
+    });
+  }
+
+  function ensureCerts(){
+    if(certsCache){ renderCertCards(certsCache); return; }
+    certPickNote.textContent = 'Loading certificates…';
+    getJSON('/api/certs').then(function(list){
+      certsCache = list || [];
+      renderCertCards(certsCache);
+    }).catch(function(){
+      certCards.innerHTML = '';
+      certPickNote.textContent = 'Could not load certificates. Close and try again.';
+    });
+  }
+
+  function openCertPicker(ipaId, ipaLabel){
+    currentIpa = ipaId;
+    currentIpaLabel = ipaLabel;
+    dead = true;
+    clearTimeout(pollTimer);
+    dead = false;
+    signAppNamePick.textContent = ipaLabel;
+    titleEl.textContent = 'Choose certificate';
+    signBack.hidden = true;
+    certPickPane.hidden = false;
+    signProgressPane.hidden = true;
+    actionsEl.hidden = true;
+    retryBtn.hidden = true;
+    openModal();
+    ensureCerts();
+  }
+
+  /* ---- sign progress pane ---- */
 
   function fail(msg){
     [].forEach.call(stepsEl.querySelectorAll('.sign-step.active'), function(li){
@@ -1019,16 +1116,8 @@
     }, POLL_MS);
   }
 
-  function startSign(ipaId, ipaLabel){
-    var cert = certSelect.value;
-    var certLabel = cert;
-    if(certSelect.selectedIndex >= 0 && certSelect.options[certSelect.selectedIndex]){
-      certLabel = certSelect.options[certSelect.selectedIndex].text;
-    }
-    if(!cert){
-      note('Please choose a certificate first.');
-      return;
-    }
+  function startSign(ipaId, ipaLabel, cert, certLabel){
+    if(!cert) return;
     dead = false;
     autoOpened = false;
     currentIpa = ipaId; currentIpaLabel = ipaLabel;
@@ -1041,7 +1130,9 @@
     certEl.textContent = certLabel;
     appEl.textContent = ipaLabel;
     titleEl.textContent = 'Installing ' + ipaLabel;
-    openModal();
+    certPickPane.hidden = true;
+    signProgressPane.hidden = false;
+    signBack.hidden = false;
     mark('request', 'active');
     note('Requesting a sign job…');
     postJSON('/api/sign', { cert: cert, ipa: ipaId }).then(function(res){
@@ -1073,16 +1164,19 @@
 
   document.addEventListener('click', function(e){
     var b = e.target.closest ? e.target.closest('button[data-ipa]') : null;
-    if(!b || b.disabled) return;
+    if(!b) return;
     /* Respect the TOS gate even for keyboard activation. */
     var tos = document.getElementById('tosCheck');
     if(tos && !tos.checked) return;
     e.preventDefault();
-    startSign(b.getAttribute('data-ipa'), b.getAttribute('data-label') || b.getAttribute('data-ipa'));
+    openCertPicker(b.getAttribute('data-ipa'), b.getAttribute('data-label') || b.getAttribute('data-ipa'));
   }, true);
 
+  signBack.addEventListener('click', function(){
+    openCertPicker(currentIpa, currentIpaLabel);
+  });
   retryBtn.addEventListener('click', function(){
-    startSign(currentIpa, currentIpaLabel);
+    startSign(currentIpa, currentIpaLabel, currentCert, currentCertLabel);
   });
 
   [].forEach.call(modal.querySelectorAll('[data-sign-close]'), function(el){
