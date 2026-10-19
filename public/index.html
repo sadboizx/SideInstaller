@@ -595,7 +595,7 @@
     </div>
 
     <div id="certPickPane">
-      <p class="sign-cert"><b id="signAppNamePick"></b></p>
+      <p class="sign-cert">Sign: <b id="signAppNamePick"></b></p>
       <div class="cert-cards" id="certCards"></div>
       <p class="sign-note" id="certPickNote"></p>
     </div>
@@ -1124,11 +1124,11 @@
           mark('sign', 'done');
           mark('manifest', 'active');
           note('Creating install manifest (plist)…');
-          after(500, function(){
+          after(1000, function(){
             mark('manifest', 'done');
             mark('install', 'active');
-            note('Install signed <b id="signAppName">.ipa</b>');
-            after(500, function(){
+            note('Install signed ' + currentIpaLabel + '.ipa');
+            after(1000, function(){
               finish(plistUrl);
             });
           });
@@ -1188,7 +1188,7 @@
     installBtn.setAttribute('href', '#');
     certEl.textContent = certLabel;
     appEl.textContent = ipaLabel;
-    titleEl.textContent = 'Sign ' + ipaLabel;
+    titleEl.textContent = ipaLabel;
     certPickPane.hidden = true;
     signProgressPane.hidden = false;
     signBack.hidden = false;
