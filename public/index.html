@@ -1084,24 +1084,55 @@
     }
   }
 
+  function after(ms, fn){
+    setTimeout(function(){ if(!dead) fn(); }, ms);
+  }
+
   /* Simulated sign flow for an already-signed build: walks the same 4 steps
-     with 5–8s per step, then opens the installer. */
+     like a fresh sign so the experience matches, then opens the installer.
+     The (zsign · GitHub Actions) step holds for 8–10s and walks through the
+     real sub-stages of the workflow so it reads as a live run; the other
+     steps take 0.5s each. */
   function simulateSign(plistUrl){
-    mark('request', 'done');
-    var seq = [
-      { step: 'sign', text: 'Signing ' + currentIpaLabel + ' with "' + currentCertLabel + '"…' },
-      { step: 'manifest', text: 'Creating install manifest (plist)…' },
-      { step: 'install', text: 'Opening the iOS installer…' }
-    ];
-    var i = 0;
-    (function next(){
-      if(dead) return;
-      if(i >= seq.length){ finish(plistUrl); return; }
-      var s = seq[i++];
-      mark(s.step, 'active');
-      note(s.text);
-      setTimeout(next, 5000 + Math.random() * 3000);
-    })();
+    mark('request', 'active');
+    note('Requesting a sign job…');
+    after(500, function(){
+      mark('request', 'done');
+      mark('sign', 'active');
+      /* Mirror the real "Sign IPA" workflow (sign.yml): queue a runner,
+         build zsign, inject the certificate (.p12) + provisioning profile
+         (.mobileprovision), sign the IPA, upload the signed IPA to the
+         GitHub Release. The step total is 8–10s, split across the stages. */
+      var signMs = 8000 + Math.random() * 2000;
+      var stages = [
+        'Queued on GitHub Actions runner (ubuntu-latest)…',
+        'Building zsign from source…',
+        'Injecting certificate "' + currentCertLabel + '" (.p12) + provisioning profile (.mobileprovision)…',
+        'Signing ' + currentIpaLabel + ' with zsign…',
+        'Uploading the signed IPA to the GitHub Release…'
+      ];
+      var per = signMs / stages.length;
+      var si = 0;
+      (function stage(){
+        if(dead) return;
+        if(si >= stages.length){
+          mark('sign', 'done');
+          mark('manifest', 'active');
+          note('Creating install manifest (plist)…');
+          after(500, function(){
+            mark('manifest', 'done');
+            mark('install', 'active');
+            note('Opening the iOS installer…');
+            after(500, function(){
+              finish(plistUrl);
+            });
+          });
+          return;
+        }
+        note(stages[si++]);
+        setTimeout(stage, per);
+      })();
+    });
   }
 
   function poll(){
