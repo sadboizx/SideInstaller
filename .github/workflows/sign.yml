@@ -199,7 +199,11 @@ jobs:
               --title "${{ steps.ipa.outputs.ipa_name }} (signed) — ${{ steps.prep.outputs.cert }}" \
               --notes "${{ steps.ipa.outputs.ipa_name }} automatically signed with the **${{ steps.prep.outputs.cert }}** certificate by the \"Sign IPA\" workflow. The website installs it via the matching OTA manifest in public/output/. Do not delete this release while the certificate is in use."
           fi
-          gh release upload "$TAG" "$ASSET" --clobber
+          # Upload phải idempotent: re-run (hoặc 2 run đua nhau sau double-tap)
+          # upload cùng tên asset. Xóa asset cũ theo tên trước — chỉ dùng
+          # --clobber có thể 422 "ReleaseAsset.name already exists" khi race.
+          gh release delete-asset "$TAG" "$ASSET" -y 2>/dev/null || true
+          gh release upload "$TAG" "$ASSET"
           echo "Released: $(gh release view "$TAG" --json url -q .url)"
 
       - name: Generate OTA install manifest (plist)
