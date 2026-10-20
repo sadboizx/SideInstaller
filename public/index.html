@@ -343,13 +343,24 @@
     max-height:min(52vh,420px); overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
   .cert-card{
-    display:flex; align-items:center; gap:12px; width:100%; padding:14px 16px;
-    text-align:left; font-family:inherit; color:var(--text); cursor:pointer;
+    display:flex; align-items:center; gap:6px; width:100%;
     background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius-sm);
-    transition:background .14s, border-color .14s, transform .14s;
+    transition:background .14s, border-color .14s;
   }
   .cert-card:hover{background:var(--card-hover); border-color:var(--stroke-strong)}
-  .cert-card:active{transform:scale(.98)}
+  .cert-card-main{
+    display:flex; align-items:center; gap:12px; flex:1; min-width:0; padding:14px 6px 14px 16px;
+    text-align:left; font-family:inherit; color:var(--text); cursor:pointer;
+    background:none; border:none;
+  }
+  .cert-card-main:active{transform:scale(.98)}
+  .cert-fav{
+    flex:none; width:40px; height:40px; margin-right:8px; display:grid; place-items:center;
+    background:none; border:none; border-radius:999px; cursor:pointer; color:var(--faint);
+  }
+  .cert-fav svg{width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round}
+  .cert-fav.on{color:#fbbf24}
+  .cert-fav.on svg{fill:#fbbf24}
   .cert-card-info{flex:1; min-width:0}
   .cert-card-name{margin:0; font-size:15px; font-weight:700; word-break:break-word; overflow-wrap:anywhere}
   .cert-card-meta{margin:3px 0 0; font-size:12.5px; color:var(--faint)}
@@ -621,6 +632,7 @@
         <input type="search" id="certSearch" class="cert-search" placeholder="Search certificates..." aria-label="Search certificates" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
       <select id="certSort" class="cert-sort" aria-label="Sort certificates">
+        <option value="favorites">Favorites</option>
         <option value="days-desc" selected>Most days left</option>
         <option value="days-asc">Least days left</option>
         <option value="name-az">Name A–Z</option>
@@ -1090,12 +1102,33 @@
 
   /* ---- certificate picker pane ---- */
 
+  /* Favorite certificates, stored per device in localStorage. */
+  var FAV_KEY = 'si-fav-certs';
+  function loadFavs(){
+    try{
+      var a = JSON.parse(localStorage.getItem(FAV_KEY) || '[]');
+      return Array.isArray(a) ? a : [];
+    }catch(_){ return []; }
+  }
+  function isFav(val){ return loadFavs().indexOf(val) !== -1; }
+  function toggleFav(val){
+    var a = loadFavs();
+    var i = a.indexOf(val);
+    if(i === -1) a.push(val); else a.splice(i, 1);
+    try{ localStorage.setItem(FAV_KEY, JSON.stringify(a)); }catch(_){}
+    return i === -1;
+  }
+  var FAV_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5l-5.9 3.1 1.2-6.5L2.5 9.5l6.6-.9z"/></svg>';
+
   function renderCertCard(c){
     var val = c.folder || c.displayName || c.name || '';
     var label = c.displayName || c.name || '';
+    var card = document.createElement('div');
+    card.className = 'cert-card';
+
     var b = document.createElement('button');
     b.type = 'button';
-    b.className = 'cert-card';
+    b.className = 'cert-card-main';
 
     var info = document.createElement('div');
     info.className = 'cert-card-info';
@@ -1123,7 +1156,23 @@
     b.addEventListener('click', function(){
       startSign(currentIpa, currentIpaLabel, val, label);
     });
-    return b;
+
+    var fav = document.createElement('button');
+    fav.type = 'button';
+    fav.className = 'cert-fav' + (isFav(val) ? ' on' : '');
+    fav.setAttribute('aria-label', 'Toggle favorite');
+    fav.setAttribute('aria-pressed', isFav(val) ? 'true' : 'false');
+    fav.innerHTML = FAV_STAR;
+    fav.addEventListener('click', function(){
+      var on = toggleFav(val);
+      fav.classList.toggle('on', on);
+      fav.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if(certSort.value === 'favorites') applyCertFilter(); // card no longer belongs in this view
+    });
+
+    card.appendChild(b);
+    card.appendChild(fav);
+    return card;
   }
 
   /* Sort certificates by the dropdown choice. Default "Most days left":
@@ -1146,11 +1195,13 @@
     });
   }
 
-  function renderCertCards(list, filtered){
+  function renderCertCards(list, filtered, favMode){
     certCards.innerHTML = '';
     certPickNote.textContent = '';
     if(!list.length){
-      certPickNote.textContent = filtered ? 'No certificates match your search.' : 'No certificates available.';
+      certPickNote.textContent = filtered ? 'No certificates match your search.'
+        : favMode ? 'No favorites yet — tap the star on a certificate to add it here.'
+        : 'No certificates available.';
       return;
     }
     list.forEach(function(c){
@@ -1160,14 +1211,23 @@
 
   function applyCertFilter(){
     var q = (certSearch.value || '').trim().toLowerCase();
-    var list = sortCerts(certsCache, certSort.value);
+    var mode = certSort.value;
+    var list;
+    if(mode === 'favorites'){
+      var favs = loadFavs();
+      list = sortCerts((certsCache || []).filter(function(c){
+        return favs.indexOf(c.folder || c.displayName || c.name || '') !== -1;
+      }), 'days-desc');
+    } else {
+      list = sortCerts(certsCache, mode);
+    }
     if(q){
       list = list.filter(function(c){
         var hay = ((c.displayName || '') + ' ' + (c.name || '') + ' ' + (c.folder || '')).toLowerCase();
         return hay.indexOf(q) !== -1;
       });
     }
-    renderCertCards(list, !!q);
+    renderCertCards(list, !!q, mode === 'favorites');
   }
 
   function ensureCerts(){
