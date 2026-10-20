@@ -317,14 +317,27 @@
 
   /* ---- certificate cards (inside the sign modal) ----
      Shown after tapping Sign on an app; tapping a card starts the sign. */
+  .cert-search-wrap{position:relative; margin:0 0 10px}
+  .cert-search-icon{
+    position:absolute; left:16px; top:50%; transform:translateY(-50%);
+    width:20px; height:20px; color:var(--faint); pointer-events:none;
+  }
   .cert-search{
-    width:100%; box-sizing:border-box; margin:0 0 12px; padding:11px 14px;
+    width:100%; box-sizing:border-box; margin:0; padding:13px 16px 13px 48px;
     font-family:inherit; font-size:15px; color:var(--text);
-    background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius-sm);
+    background:var(--card); border:1px solid var(--stroke); border-radius:999px;
     outline:none; -webkit-appearance:none; appearance:none;
   }
   .cert-search::placeholder{color:var(--faint)}
   .cert-search:focus{border-color:var(--stroke-strong)}
+  .cert-sort{
+    width:100%; box-sizing:border-box; margin:0 0 12px; padding:13px 44px 13px 16px;
+    font-family:inherit; font-size:15px; font-weight:600; color:var(--text);
+    background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aab4d4' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 16px center/14px;
+    border:1px solid var(--stroke); border-radius:999px;
+    outline:none; -webkit-appearance:none; appearance:none; cursor:pointer;
+  }
+  .cert-sort:focus{border-color:var(--stroke-strong)}
   .cert-cards{
     display:flex; flex-direction:column; gap:10px;
     max-height:min(52vh,420px); overflow-y:auto; -webkit-overflow-scrolling:touch;
@@ -603,7 +616,16 @@
 
     <div id="certPickPane">
       <p class="sign-cert">Sign: <b id="signAppNamePick"></b></p>
-      <input type="search" id="certSearch" class="cert-search" placeholder="Search " aria-label="Search certificates" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="cert-search-wrap">
+        <svg class="cert-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="search" id="certSearch" class="cert-search" placeholder="Search certificates..." aria-label="Search certificates" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+      <select id="certSort" class="cert-sort" aria-label="Sort certificates">
+        <option value="days-desc" selected>Most days left</option>
+        <option value="days-asc">Least days left</option>
+        <option value="name-az">Name A–Z</option>
+        <option value="name-za">Name Z–A</option>
+      </select>
       <div class="cert-cards" id="certCards"></div>
       <p class="sign-note" id="certPickNote"></p>
     </div>
@@ -963,6 +985,7 @@
   var certCards = document.getElementById('certCards');
   var certPickNote = document.getElementById('certPickNote');
   var certSearch = document.getElementById('certSearch');
+  var certSort = document.getElementById('certSort');
   var certEl = document.getElementById('signCertName');
   var appEl = document.getElementById('signAppName');
   var installAppEl = document.getElementById('signInstallAppName');
@@ -1101,18 +1124,23 @@
     return b;
   }
 
-  /* Sort certificates: valid first (most days left first), then expired /
-     unknown; alphabetical inside each group. */
-  function sortCerts(list){
+  /* Sort certificates by the dropdown choice. Default "Most days left":
+     valid first (most days left first), then expired / unknown;
+     alphabetical as tiebreak. */
+  function sortCerts(list, mode){
     return (list || []).slice().sort(function(a, b){
       var da = (a.days != null ? a.days : -999999);
       var db = (b.days != null ? b.days : -999999);
+      var na = (a.displayName || a.name || '').toLowerCase();
+      var nb = (b.displayName || b.name || '').toLowerCase();
+      var byName = na < nb ? -1 : na > nb ? 1 : 0;
+      if(mode === 'days-asc') return (da - db) || byName;
+      if(mode === 'name-az') return byName;
+      if(mode === 'name-za') return -byName;
       var aBad = da < 0, bBad = db < 0;
       if(aBad !== bBad) return aBad ? 1 : -1;
       if(db !== da) return db - da;
-      var na = (a.displayName || a.name || '').toLowerCase();
-      var nb = (b.displayName || b.name || '').toLowerCase();
-      return na < nb ? -1 : na > nb ? 1 : 0;
+      return byName;
     });
   }
 
@@ -1130,7 +1158,7 @@
 
   function applyCertFilter(){
     var q = (certSearch.value || '').trim().toLowerCase();
-    var list = sortCerts(certsCache);
+    var list = sortCerts(certsCache, certSort.value);
     if(q){
       list = list.filter(function(c){
         var hay = ((c.displayName || '') + ' ' + (c.name || '') + ' ' + (c.folder || '')).toLowerCase();
@@ -1153,6 +1181,16 @@
   }
 
   certSearch.addEventListener('input', applyCertFilter);
+
+  /* Remember the sort choice across visits. */
+  try{
+    var savedSort = localStorage.getItem('si-cert-sort');
+    if(savedSort && certSort.querySelector('option[value="' + savedSort + '"]')) certSort.value = savedSort;
+  }catch(_){}
+  certSort.addEventListener('change', function(){
+    try{ localStorage.setItem('si-cert-sort', certSort.value); }catch(_){}
+    applyCertFilter();
+  });
 
   function openCertPicker(ipaId, ipaLabel){
     currentIpa = ipaId;
