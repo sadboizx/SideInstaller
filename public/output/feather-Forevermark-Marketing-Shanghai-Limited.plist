@@ -11,13 +11,13 @@
           <key>kind</key>
           <string>software-package</string>
           <key>url</key>
-          <string>https://github.com/sadboizx/SideInstaller/releases/download/feather-signed-Forevermark-Marketing-Shanghai-Limited/Feather-Forevermark-Marketing-Shanghai-Limited.ipa</string>
+          <string>https://github.com/sadboizx/SideInstaller/releases/download/feather-signed-Forevermark-Marketing-Shanghai-Limited/feather-Forevermark-Marketing-Shanghai-Limited.ipa</string>
         </dict>
       </array>
       <key>metadata</key>
       <dict>
         <key>bundle-identifier</key>
-        <string>thewonderofyou.Feather</string>
+        <string>thewonderofyou.Feather.a2eb00</string>
         <key>bundle-version</key>
         <string>2.9.0</string>
         <key>kind</key>
