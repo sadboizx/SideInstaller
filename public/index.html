@@ -317,6 +317,14 @@
 
   /* ---- certificate cards (inside the sign modal) ----
      Shown after tapping Sign on an app; tapping a card starts the sign. */
+  .cert-search{
+    width:100%; box-sizing:border-box; margin:0 0 12px; padding:11px 14px;
+    font-family:inherit; font-size:15px; color:var(--text);
+    background:var(--card); border:1px solid var(--stroke); border-radius:var(--radius-sm);
+    outline:none; -webkit-appearance:none; appearance:none;
+  }
+  .cert-search::placeholder{color:var(--faint)}
+  .cert-search:focus{border-color:var(--stroke-strong)}
   .cert-cards{
     display:flex; flex-direction:column; gap:10px;
     max-height:min(52vh,420px); overflow-y:auto; -webkit-overflow-scrolling:touch;
@@ -497,7 +505,7 @@
           <li>Open this page <b>on your iPhone or iPad in Safari</b>.</li>
           <li>Pick an app above and tap <b>Sign</b>.</li>
           <li>Wait while the app signs automated — once it's ready, tap Install on the prompt.</li>
-          <li>The app now installs on your Home Screen — wait until app ready.</li>
+          <li>The app now installs on your Home Screen — wait until the app is ready.</li>
           <li>Go to <code>Settings → General → VPN &amp; Device Management</code>, tap the developer profile, and <b>Trust</b> it.</li>
           <li>Launch the app. If one certificate is revoked or won't open, just sign app with another certificate.</li>
         </ol>
@@ -514,7 +522,7 @@
       </div>
     </div>
     <div class="step-card">
-      <p>That's it. Your signed apps appear on the Home Screen - go to <code>Settings → General → VPN &amp; Device Management → ENTERPPRISE APP → Trust</code></p>
+      <p>That's it. Your signed apps appear on the Home Screen - go to <code>Settings → General → VPN &amp; Device Management → ENTERPRISE APP → Trust</code></p>
       <div class="callout">
         <b style="color: #f87171;">IMPORTANT:</b> Once an app is installed, leave the <code>DNS Profile</code> exactly as it is — <b>DNS must stay ON at all times.</b> It is the only thing standing between these revoked certificates and <code>Apple's servers:</code> <b style="color: #f87171;">Disable OR Delete it your apps stop working.</b> Likewise, <b style="color: #f87171;">Do not use a VPN</b> — as VPN traffic bypasses the DNS filter and your apps may get revoked.
       </div>
@@ -595,6 +603,7 @@
 
     <div id="certPickPane">
       <p class="sign-cert">Sign: <b id="signAppNamePick"></b></p>
+      <input type="search" id="certSearch" class="cert-search" placeholder="Search " aria-label="Search certificates" autocomplete="off" autocapitalize="off" spellcheck="false">
       <div class="cert-cards" id="certCards"></div>
       <p class="sign-note" id="certPickNote"></p>
     </div>
@@ -953,6 +962,7 @@
   var signAppNamePick = document.getElementById('signAppNamePick');
   var certCards = document.getElementById('certCards');
   var certPickNote = document.getElementById('certPickNote');
+  var certSearch = document.getElementById('certSearch');
   var certEl = document.getElementById('signCertName');
   var appEl = document.getElementById('signAppName');
   var installAppEl = document.getElementById('signInstallAppName');
@@ -1091,11 +1101,26 @@
     return b;
   }
 
-  function renderCertCards(list){
+  /* Sort certificates: valid first (most days left first), then expired /
+     unknown; alphabetical inside each group. */
+  function sortCerts(list){
+    return (list || []).slice().sort(function(a, b){
+      var da = (a.days != null ? a.days : -999999);
+      var db = (b.days != null ? b.days : -999999);
+      var aBad = da < 0, bBad = db < 0;
+      if(aBad !== bBad) return aBad ? 1 : -1;
+      if(db !== da) return db - da;
+      var na = (a.displayName || a.name || '').toLowerCase();
+      var nb = (b.displayName || b.name || '').toLowerCase();
+      return na < nb ? -1 : na > nb ? 1 : 0;
+    });
+  }
+
+  function renderCertCards(list, filtered){
     certCards.innerHTML = '';
     certPickNote.textContent = '';
     if(!list.length){
-      certPickNote.textContent = 'No certificates available.';
+      certPickNote.textContent = filtered ? 'No certificates match your search.' : 'No certificates available.';
       return;
     }
     list.forEach(function(c){
@@ -1103,23 +1128,38 @@
     });
   }
 
+  function applyCertFilter(){
+    var q = (certSearch.value || '').trim().toLowerCase();
+    var list = sortCerts(certsCache);
+    if(q){
+      list = list.filter(function(c){
+        var hay = ((c.displayName || '') + ' ' + (c.name || '') + ' ' + (c.folder || '')).toLowerCase();
+        return hay.indexOf(q) !== -1;
+      });
+    }
+    renderCertCards(list, !!q);
+  }
+
   function ensureCerts(){
-    if(certsCache){ renderCertCards(certsCache); return; }
+    if(certsCache){ applyCertFilter(); return; }
     certPickNote.textContent = 'Loading certificates…';
     getJSON('/api/certs').then(function(list){
       certsCache = list || [];
-      renderCertCards(certsCache);
+      applyCertFilter();
     }).catch(function(){
       certCards.innerHTML = '';
       certPickNote.textContent = 'Could not load certificates. Close and try again.';
     });
   }
 
+  certSearch.addEventListener('input', applyCertFilter);
+
   function openCertPicker(ipaId, ipaLabel){
     currentIpa = ipaId;
     currentIpaLabel = ipaLabel;
     killSignFlow(); // stop the running sign flow before showing the picker
     dead = false;
+    certSearch.value = '';
     signAppNamePick.textContent = ipaLabel;
     titleEl.textContent = 'Choose certificate';
     signBack.hidden = true;
