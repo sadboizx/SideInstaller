@@ -495,12 +495,11 @@
       <div class="howto-body">
         <ol>
           <li>Open this page <b>on your iPhone or iPad in Safari</b>.</li>
-          <li>Pick an app below and tap <b>Sign</b>.</li>
-          <li>Choose a <b>certificate</b> from the list.</li>
-          <li><b>Signing happens automatically:</b> the app's IPA is signed with your certificate using zsign on GitHub Actions (zsign can't run on Cloudflare Workers, so the heavy work happens there), then the install manifest is built — you just wait and watch the progress.</li>
-          <li>When the manifest is ready, the iOS installer opens by itself. Confirm the prompt and wait for the app on your Home Screen.</li>
+          <li>Pick an app above and tap <b>Sign</b>.</li>
+          <li><b>Signing is fully automatically —</b> then confirm the prompt.</li>
+          <li>Wait for the app to finish installing on your Home Screen.</li>
           <li>Go to <code>Settings → General → VPN &amp; Device Management</code>, tap the developer profile, and <b>Trust</b> it.</li>
-          <li>Launch the app. If one certificate is revoked or won't open, try another.</li>
+          <li>Launch the app. If one certificate is revoked or won't open, just install with another.</li>
         </ol>
       </div>
     </details>
