@@ -636,7 +636,7 @@
         <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Preparing to sign <small>(ubuntu-latest)</small></span></li>
         <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
         <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Publishing install manifest</span></li>
-        <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Pushing signed <b id="signInstallAppName">the app</b>.ipa to your device</span></li>
+        <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span><b id="signInstallAppName">the app</b> — ready to install</span></li>
       </ol>
       <p class="sign-note" id="signNote" aria-live="polite"></p>
       <div class="sign-actions" id="signActions" hidden>
@@ -1272,7 +1272,7 @@
           after(1000, function(){
             mark('manifest', 'done');
             mark('install', 'active');
-            note('Pushing signed ' + currentIpaLabel + '.ipa to your device…');
+            note(currentIpaLabel + ' — ready to install…');
             after(1000, function(){
               finish(plistUrl, gen);
             });
