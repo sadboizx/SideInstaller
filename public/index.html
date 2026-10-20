@@ -361,8 +361,8 @@
 
   /* ---- sign progress modal ----
      Shown after picking a certificate: the IPA is signed with it on GitHub
-     Actions (zsign), then the install manifest (plist) is built and the iOS
-     installer opens automatically. */
+     Actions (zsign), then the install manifest (plist) is built and the user
+     taps Install now to open the iOS installer. */
   .sign-cert{margin:0 0 14px; color:var(--muted); font-size:14px}
   .sign-cert b{color:var(--text)}
   .sign-steps{list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:10px}
@@ -964,8 +964,10 @@
         certificate's .p12 + .mobileprovision, uploads the signed IPA to a
         GitHub Release, and commits public/output/<ipa>-<cert>.plist.
      3. This page polls GET /api/sign-status?cert=...&ipa=... until the run
-        succeeds and the manifest is live, then opens
-        itms-services://?action=download-manifest&url=<manifest> automatically.
+        succeeds and the manifest is live, then the user taps Install now,
+        which opens itms-services://?action=download-manifest&url=<manifest>
+        directly to the iOS install prompt (no programmatic auto-open — that
+        makes iOS interpose an "Open this page in iTunes?" prompt first).
    Cancelling (Back, tapping outside the modal, the × button, or Escape)
    stops everything: killSignFlow() bumps a generation token so late timers
    and fetch callbacks from the old flow ignore themselves, aborts the
@@ -1007,7 +1009,7 @@
   var signAbort = null;
   var currentIpa = '', currentIpaLabel = '';
   var currentCert = '', currentCertLabel = '';
-  var startedAt = 0, autoOpened = false;
+  var startedAt = 0;
   var certsCache = null;
 
   function postJSON(url, data, signal){
@@ -1229,10 +1231,9 @@
     installBtn.setAttribute('href', itms);
     retryBtn.hidden = true;
     actionsEl.hidden = false;
-    if(!autoOpened){
-      autoOpened = true;
-      setTimeout(function(){ if(gen === signGen && !dead) window.location.href = itms; }, 1500);
-    }
+    /* No auto-open: a programmatic redirect to itms-services makes iOS ask
+       "Open this page in iTunes?" first. A real tap on the Install now link
+       goes straight to the install prompt instead. */
   }
 
   function after(ms, fn){
@@ -1331,7 +1332,6 @@
     dead = false;
     var gen = signGen;
     signAbort = new AbortController();
-    autoOpened = false;
     currentIpa = ipaId; currentIpaLabel = ipaLabel;
     currentCert = cert; currentCertLabel = certLabel;
     startedAt = Date.now();
