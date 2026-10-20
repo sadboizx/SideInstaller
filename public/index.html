@@ -359,8 +359,8 @@
     background:none; border:none; border-radius:999px; cursor:pointer; color:var(--faint);
   }
   .cert-fav svg{width:21px; height:21px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round}
-  .cert-fav.on{color:#fbbf24}
-  .cert-fav.on svg{fill:#fbbf24}
+  .cert-fav.on{color:#ef4444}
+  .cert-fav.on svg{fill:#ef4444}
   .cert-card-info{flex:1; min-width:0}
   .cert-card-name{margin:0; font-size:15px; font-weight:700; word-break:break-word; overflow-wrap:anywhere}
   .cert-card-meta{margin:3px 0 0; font-size:12.5px; color:var(--faint)}
@@ -368,7 +368,7 @@
   .days.good{color:var(--good)}
   .days.warn{color:var(--warn)}
   .days.bad{color:var(--bad)}
-  .cert-card-chev{flex:none; font-size:22px; font-weight:300; color:var(--faint)}
+  .cert-card-chev{flex:none; font-size:22px; font-weight:300; color:var(--faint); margin-right:16px}
 
   /* ---- sign progress modal ----
      Shown after picking a certificate: the IPA is signed with it on GitHub
@@ -632,11 +632,11 @@
         <input type="search" id="certSearch" class="cert-search" placeholder="Search certificates..." aria-label="Search certificates" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
       <select id="certSort" class="cert-sort" aria-label="Sort certificates">
-        <option value="favorites">Favorites</option>
         <option value="days-desc" selected>Most days left</option>
         <option value="days-asc">Least days left</option>
         <option value="name-az">Name A–Z</option>
         <option value="name-za">Name Z–A</option>
+        <option value="favorites">Favorites</option>
       </select>
       <div class="cert-cards" id="certCards"></div>
       <p class="sign-note" id="certPickNote"></p>
@@ -1118,7 +1118,7 @@
     try{ localStorage.setItem(FAV_KEY, JSON.stringify(a)); }catch(_){}
     return i === -1;
   }
-  var FAV_STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5l-5.9 3.1 1.2-6.5L2.5 9.5l6.6-.9z"/></svg>';
+  var FAV_HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.7C6.4 16.9 3 13.6 3 9.9 3 7.2 5.1 5 7.8 5c1.7 0 3.3.9 4.2 2.3C12.9 5.9 14.5 5 16.2 5 18.9 5 21 7.2 21 9.9c0 3.7-3.4 7-9 10.8z"/></svg>';
 
   function renderCertCard(c){
     var val = c.folder || c.displayName || c.name || '';
@@ -1152,7 +1152,6 @@
     chev.textContent = '›';
 
     b.appendChild(info);
-    b.appendChild(chev);
     b.addEventListener('click', function(){
       startSign(currentIpa, currentIpaLabel, val, label);
     });
@@ -1162,7 +1161,7 @@
     fav.className = 'cert-fav' + (isFav(val) ? ' on' : '');
     fav.setAttribute('aria-label', 'Toggle favorite');
     fav.setAttribute('aria-pressed', isFav(val) ? 'true' : 'false');
-    fav.innerHTML = FAV_STAR;
+    fav.innerHTML = FAV_HEART;
     fav.addEventListener('click', function(){
       var on = toggleFav(val);
       fav.classList.toggle('on', on);
@@ -1172,6 +1171,7 @@
 
     card.appendChild(b);
     card.appendChild(fav);
+    card.appendChild(chev);
     return card;
   }
 
@@ -1200,7 +1200,7 @@
     certPickNote.textContent = '';
     if(!list.length){
       certPickNote.textContent = filtered ? 'No certificates match your search.'
-        : favMode ? 'No favorites yet — tap the star on a certificate to add it here.'
+        : favMode ? 'No favorites yet — tap the heart on a certificate to add it here.'
         : 'No certificates available.';
       return;
     }
