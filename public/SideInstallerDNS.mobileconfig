@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+ <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 	<dict>
@@ -38,6 +38,21 @@
 						<string>xp.apple.com</string>
 						<string>s.mzstatic.com</string>
 						<string>profile.ess.apple.com</string>
+						<string>ocsp2-lb.apple.com</string>
+						<string>ocsp2.g.aaplimg.com</string>
+						<string>ocsp2-lb.apple.com.akadns.net</string>
+						<string>crl2.apple.com</string>
+						<string>crl3.apple.com</string>
+						<string>crl.digicert.com</string>
+						<string>crl2.digicert.com</string>
+						<string>crl5.digicert.com</string>
+						<string>gsas.apple.com</string>
+						<string>gsas.idms-apple.com.akadns.net</string>
+						<string>ma-gsa-hb-prod.apple.com</string>
+						<string>aidc.apple.com</string>
+						<string>init.ess.apple.com</string>
+						<string>iphone-ld.origin-apple.com</string>
+						<string>mesu.apple.com</string>
 						<!--
 <string>humb.apple.com</string><string>idv-prod1.apple.com</string><string>idv.cdn-apple.com</string><string>smp-device-content.apple.com</string>
 -->
@@ -67,7 +82,7 @@
 		<key>PayloadDisplayName</key>
 		<string>SideInstaller</string>
 		<key>PayloadDescription</key>
-		<string>DNS blocked Apple certificate revocation endpoints (ocsp/crl) to prevent app revocation.</string>
+		<string>IMPORTANT: Once an app is installed, leave the DNS Profile exactly as it is — DNS must stay ON at all times. It is the only thing standing between these revoked certificates and Apple's servers: Disable OR Delete it your apps stop working. Likewise, Do not use a VPN — as VPN traffic bypasses the DNS filter and your apps may get revoked.</string>
 		<key>PayloadOrganization</key>
 		<string>No revokes!</string>
 		<key>PayloadIdentifier</key>
