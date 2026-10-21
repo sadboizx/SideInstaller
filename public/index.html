@@ -1082,17 +1082,28 @@
   /* Safari chrome color while the sign modal is open: #000a25 (the dimmed
      page color around the modal), back to the page blue #011a5c on close.
      Measured on the user's iOS 17.4 (screen recordings): the STATUS bar
-     follows theme-color live, so the static value must stay #011a5c and
-     only the JS swap below darkens it while the modal is open. The BOTTOM
-     address bar does not follow theme-color at all (static or live) — its
-     tint is fixed from the page background at load. */
+     follows theme-color live (normal direction), so the static meta stays
+     #011a5c and the swap below darkens it only while the modal is open.
+     The BOTTOM address bar does not follow theme-color; it follows the
+     page canvas colors (body/html/.bg) — and with the mapping INVERTED:
+     commit 98fcb49 applied #000a25 to them on open and the bar turned
+     blue, while at rest (blue canvas) the bar was dark. So the canvas
+     channels get the opposite assignment (blue on open, dark on close)
+     to land the bar dark while the modal is open and blue at rest;
+     body/html colors are invisible (the opaque .bg layer covers the
+     canvas), and .bg keeps the v1 assignment (dark on open so the
+     dimmed surround stays near-black, cleared on close). */
   var metaTheme = document.getElementById('metaTheme');
+  var bgEl = document.querySelector('.bg');
   function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
 
   function openModal(){
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     setThemeColor('#000a25');
+    if(bgEl) bgEl.style.backgroundColor = '#000a25';
+    document.body.style.backgroundColor = '#011a5c';
+    document.documentElement.style.backgroundColor = '#011a5c';
   }
   /* Stop everything the current sign flow is doing: bump the generation so
      late timers / fetch callbacks from the old flow ignore themselves,
@@ -1110,6 +1121,9 @@
     modal.hidden = true;
     document.body.style.overflow = '';
     setThemeColor('#011a5c');
+    if(bgEl) bgEl.style.backgroundColor = '';
+    document.body.style.backgroundColor = '#000a25';
+    document.documentElement.style.backgroundColor = '#000a25';
   }
 
   /* ---- certificate picker pane ---- */
