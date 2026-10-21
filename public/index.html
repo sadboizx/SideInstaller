@@ -47,6 +47,13 @@
     background:var(--page);
   }
 
+  /* While the sign modal is open the whole page theme darkens: --page
+     feeds the html background and the .bg layer, and the modal backdrop
+     becomes a #000a25-tinted dim, so the page background, the visible
+     surround and Safari's bars all land on the same color. */
+  html.modal-open{--page:#000a25}
+  html.modal-open .modal-backdrop{background:rgba(0,10,37,.72)}
+
   /* ---- entrance cascade, echoing the app's per-object settle-in ---- */
   .hero,.notice,.step,.footer{animation:rise .5s cubic-bezier(.22,.9,.35,1) both}
   .step:nth-of-type(1){animation-delay:.06s}
@@ -1080,41 +1087,38 @@
   }
 
   /* Safari chrome sync while the sign modal is open. Target: #000a25,
-     the color the dimmed page around the modal renders (backdrop
-     rgba(0,0,0,.6) over the page blue #011a5c). Measured on the user's
-     iOS 17.4 across five screen recordings: the STATUS bar follows
-     theme-color live. The BOTTOM bar follows the .bg layer's color —
-     but with a one-state lag: it adopts the .bg color that was in
-     effect BEFORE the open/close transition (every build that set .bg
-     in the same frame as the modal showed a blue bar in the modal and
-     a dark bar in the session after closing). So .bg is changed
-     FIRST and the modal is shown/hidden two animation frames later,
-     after the new color has composited; a pointerdown primer starts
-     the change even earlier, during the tap press. theme-color and
-     the body/html canvas are set immediately (invisible on the page:
-     the opaque .bg covers the canvas). On close everything returns
-     to the page blue #011a5c. */
+     the color the dimmed page around the modal renders. Measured on
+     the user's iOS 17.4 across six screen recordings: the STATUS bar
+     follows theme-color live. The BOTTOM bar never followed inline
+     style changes (theme-color, body/html canvas, .bg — set immediately
+     or primed frames early); it only ever reflected the page theme of
+     the previous state. So the modal now toggles a class on <html>
+     that switches the stylesheet-level --page variable itself (which
+     feeds both the html background and the .bg layer) to #000a25,
+     plus the theme-color for the status bar; the modal shows/hides
+     two animation frames after the toggle so the new theme has
+     painted, and a pointerdown primer starts the toggle during the
+     tap press. On close everything returns to the page blue #011a5c. */
   var metaTheme = document.getElementById('metaTheme');
-  var bgEl = document.querySelector('.bg');
   function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
-  function setBg(c){ if(bgEl) bgEl.style.backgroundColor = c; }
+  function setModalTheme(open){
+    document.documentElement.classList.toggle('modal-open', open);
+    setThemeColor(open ? '#000a25' : '#011a5c');
+  }
   function afterTwoFrames(fn){ requestAnimationFrame(function(){ requestAnimationFrame(fn); }); }
 
-  /* Prime the .bg color during the tap press, before the click opens
-     or closes the modal, so the new color is already on screen when
-     the transition happens. */
+  /* Prime the page theme during the tap press, before the click opens
+     or closes the modal, so the new theme is already painted when the
+     transition happens. */
   document.addEventListener('pointerdown', function(e){
     var t = e.target;
     if(!t || !t.closest) return;
-    if(t.closest('[data-sign-close]')) setBg('');
-    else if(t.closest('.sign-btn')) setBg('#000a25');
+    if(t.closest('[data-sign-close]')) setModalTheme(false);
+    else if(t.closest('.sign-btn')) setModalTheme(true);
   }, true);
 
   function openModal(){
-    setThemeColor('#000a25');
-    document.body.style.backgroundColor = '#000a25';
-    document.documentElement.style.backgroundColor = '#000a25';
-    setBg('#000a25');
+    setModalTheme(true);
     afterTwoFrames(function(){
       modal.hidden = false;
       document.body.style.overflow = 'hidden';
@@ -1133,10 +1137,7 @@
   }
   function closeModal(){
     killSignFlow();
-    setThemeColor('#011a5c');
-    document.body.style.backgroundColor = '';
-    document.documentElement.style.backgroundColor = '';
-    setBg('');
+    setModalTheme(false);
     afterTwoFrames(function(){
       modal.hidden = true;
       document.body.style.overflow = '';
