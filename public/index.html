@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" href="app-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" id="metaTheme" content="#011a5c">
+<meta name="theme-color" content="#011a5c">
 <style>
   /* Palette mirrors the app's brand blues: accent #2170F5 -> accent2 #4DADFF.
      The page sits on one flat deep navy (--page), the same tone the brand glow
@@ -46,13 +46,6 @@
     position:fixed; inset:0; z-index:-1; pointer-events:none;
     background:var(--page);
   }
-
-  /* While the sign modal is open the whole page theme darkens: --page
-     feeds the html background and the .bg layer, and the modal backdrop
-     becomes a #000a25-tinted dim, so the page background, the visible
-     surround and Safari's bars all land on the same color. */
-  html.modal-open{--page:#000a25}
-  html.modal-open .modal-backdrop{background:rgba(0,10,37,.72)}
 
   /* ---- entrance cascade, echoing the app's per-object settle-in ---- */
   .hero,.notice,.step,.footer{animation:rise .5s cubic-bezier(.22,.9,.35,1) both}
@@ -1086,43 +1079,9 @@
     return (m > 0 ? m + 'm ' : '') + (s % 60) + 's';
   }
 
-  /* Safari chrome sync while the sign modal is open. Target: #000a25,
-     the color the dimmed page around the modal renders. Measured on
-     the user's iOS 17.4 across six screen recordings: the STATUS bar
-     follows theme-color live. The BOTTOM bar never followed inline
-     style changes (theme-color, body/html canvas, .bg — set immediately
-     or primed frames early); it only ever reflected the page theme of
-     the previous state. So the modal now toggles a class on <html>
-     that switches the stylesheet-level --page variable itself (which
-     feeds both the html background and the .bg layer) to #000a25,
-     plus the theme-color for the status bar; the modal shows/hides
-     two animation frames after the toggle so the new theme has
-     painted, and a pointerdown primer starts the toggle during the
-     tap press. On close everything returns to the page blue #011a5c. */
-  var metaTheme = document.getElementById('metaTheme');
-  function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
-  function setModalTheme(open){
-    document.documentElement.classList.toggle('modal-open', open);
-    setThemeColor(open ? '#000a25' : '#011a5c');
-  }
-  function afterTwoFrames(fn){ requestAnimationFrame(function(){ requestAnimationFrame(fn); }); }
-
-  /* Prime the page theme during the tap press, before the click opens
-     or closes the modal, so the new theme is already painted when the
-     transition happens. */
-  document.addEventListener('pointerdown', function(e){
-    var t = e.target;
-    if(!t || !t.closest) return;
-    if(t.closest('[data-sign-close]')) setModalTheme(false);
-    else if(t.closest('.sign-btn')) setModalTheme(true);
-  }, true);
-
   function openModal(){
-    setModalTheme(true);
-    afterTwoFrames(function(){
-      modal.hidden = false;
-      document.body.style.overflow = 'hidden';
-    });
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
   }
   /* Stop everything the current sign flow is doing: bump the generation so
      late timers / fetch callbacks from the old flow ignore themselves,
@@ -1137,11 +1096,8 @@
   }
   function closeModal(){
     killSignFlow();
-    setModalTheme(false);
-    afterTwoFrames(function(){
-      modal.hidden = true;
-      document.body.style.overflow = '';
-    });
+    modal.hidden = true;
+    document.body.style.overflow = '';
   }
 
   /* ---- certificate picker pane ---- */
