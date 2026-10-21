@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" href="app-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" id="metaTheme" content="#000a25">
+<meta name="theme-color" content="#011a5c">
 <style>
   /* Palette mirrors the app's brand blues: accent #2170F5 -> accent2 #4DADFF.
      The page sits on one flat deep navy (--page), the same tone the brand glow
@@ -1022,7 +1022,6 @@
   var currentIpa = '', currentIpaLabel = '';
   var currentCert = '', currentCertLabel = '';
   var startedAt = 0;
-  var hiddenAt = 0, hiddenTotal = 0, pollingActive = false;
   var certsCache = null;
 
   function postJSON(url, data, signal){
@@ -1074,43 +1073,15 @@
     });
   }
   function note(t){ noteEl.textContent = t || ''; }
-  /* Milliseconds the flow has been actively running, excluding time the page
-     spent hidden (tab switched away / app backgrounded): iOS suspends page
-     timers there, so background time must not count toward the timeout or
-     the elapsed display. */
-  function activeElapsedMs(){
-    var hidden = hiddenTotal + (hiddenAt ? Date.now() - hiddenAt : 0);
-    return Math.max(0, Date.now() - startedAt - hidden);
-  }
   function elapsed(){
-    var s = Math.floor(activeElapsedMs() / 1000);
+    var s = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
     var m = Math.floor(s / 60);
     return (m > 0 ? m + 'm ' : '') + (s % 60) + 's';
   }
 
-  /* While the sign modal is open, sync the browser chrome (status bar and
-     bottom bar) to the dimmed page background around the modal:
-     rgba(0,0,0,.6) over the page blue #011a5c ≈ #000a25.
-     Safari 26 ignores theme-color for its Liquid Glass bars. Its tinting
-     samples position:fixed elements at the viewport edges and reads the
-     background-color on the element itself — on this page that is the .bg
-     layer (fixed, full-screen, page blue); the modal backdrop is absolute
-     and gets skipped, and body/html backgrounds are only a fallback that
-     never applies while .bg qualifies. So: recolor .bg while the modal is
-     open (it sits under the modal's dark backdrop, so the page itself
-     looks unchanged) and keep body/html/theme-color in sync as fallback. */
-  var metaTheme = document.getElementById('metaTheme');
-  var bgEl = document.querySelector('.bg');
-  var PAGE_THEME = '#011a5c', MODAL_THEME = '#000a25';
-  function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
-
   function openModal(){
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
-    setThemeColor(MODAL_THEME);
-    if(bgEl) bgEl.style.backgroundColor = MODAL_THEME;
-    document.body.style.backgroundColor = MODAL_THEME;
-    document.documentElement.style.backgroundColor = MODAL_THEME;
   }
   /* Stop everything the current sign flow is doing: bump the generation so
      late timers / fetch callbacks from the old flow ignore themselves,
@@ -1118,8 +1089,6 @@
      dispatch a workflow nobody wants any more), and clear the poll timer. */
   function killSignFlow(){
     signGen++;
-    pollingActive = false;
-    if(hiddenAt){ hiddenTotal += Date.now() - hiddenAt; hiddenAt = 0; }
     if(signAbort){ try{ signAbort.abort(); }catch(_){} signAbort = null; }
     clearTimeout(pollTimer);
     pollTimer = null;
@@ -1129,10 +1098,6 @@
     killSignFlow();
     modal.hidden = true;
     document.body.style.overflow = '';
-    setThemeColor(PAGE_THEME);
-    if(bgEl) bgEl.style.backgroundColor = '';
-    document.body.style.backgroundColor = '';
-    document.documentElement.style.backgroundColor = '';
   }
 
   /* ---- certificate picker pane ---- */
@@ -1309,7 +1274,6 @@
   /* ---- sign progress pane ---- */
 
   function fail(msg){
-    pollingActive = false;
     [].forEach.call(stepsEl.querySelectorAll('.sign-step.active'), function(li){
       li.classList.remove('active');
       li.classList.add('error');
@@ -1321,7 +1285,6 @@
 
   function finish(plistUrl, gen){
     if(gen !== signGen || dead) return; // flow was cancelled — don't touch the UI
-    pollingActive = false;
     mark('install', 'done');
     note('Signed with "' + currentCertLabel + '".');
     var itms = 'itms-services://?action=download-manifest&url=' + encodeURIComponent(plistUrl);
@@ -1383,14 +1346,13 @@
     });
   }
 
-  function poll(immediate){
-    pollingActive = true;
+  function poll(){
     clearTimeout(pollTimer);
     pollTimer = null;
     var gen = signGen;
     pollTimer = setTimeout(function(){
       if(gen !== signGen || dead) return;
-      if(activeElapsedMs() > MAX_WAIT_MS){
+      if(Date.now() - startedAt > MAX_WAIT_MS){
         fail('Timed out waiting for the sign job (30 min). Please try again.');
         return;
       }
@@ -1421,26 +1383,8 @@
         note('Connection hiccup — retrying…');
         poll();
       });
-    }, immediate ? 0 : POLL_MS);
+    }, POLL_MS);
   }
-
-  /* The sign job itself runs on GitHub Actions and never stops, but iOS
-     suspends this page's timers while the tab/app is in the background.
-     The moment the page is visible again, poll immediately so a job that
-     finished meanwhile lands right away; the time away is excluded from
-     the timeout via activeElapsedMs(). */
-  function resumeSignPoll(){
-    if(hiddenAt){ hiddenTotal += Date.now() - hiddenAt; hiddenAt = 0; }
-    if(pollingActive && !dead && !modal.hidden) poll(true);
-  }
-  document.addEventListener('visibilitychange', function(){
-    if(document.visibilityState === 'hidden'){
-      if(!hiddenAt) hiddenAt = Date.now();
-    } else {
-      resumeSignPoll();
-    }
-  });
-  window.addEventListener('pageshow', resumeSignPoll);
 
   function startSign(ipaId, ipaLabel, cert, certLabel){
     if(!cert) return;
@@ -1451,7 +1395,6 @@
     currentIpa = ipaId; currentIpaLabel = ipaLabel;
     currentCert = cert; currentCertLabel = certLabel;
     startedAt = Date.now();
-    hiddenAt = 0; hiddenTotal = 0;
     resetSteps();
     actionsEl.hidden = true;
     retryBtn.hidden = true;
