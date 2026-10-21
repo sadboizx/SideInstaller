@@ -1089,23 +1089,43 @@
   }
 
   /* While the sign modal is open, sync the browser chrome (status bar and
-     bottom bar) to the modal's dark background instead of the page blue. */
+     bottom bar) to the dimmed page background around the modal:
+     rgba(0,0,0,.6) over the page blue #011a5c ≈ #000a25. */
   var metaTheme = document.getElementById('metaTheme');
-  var PAGE_THEME = '#011a5c', MODAL_THEME = '#111624';
+  var PAGE_THEME = '#011a5c', MODAL_THEME = '#000a25';
   function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
 
   function openModal(){
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     setThemeColor(MODAL_THEME);
+    document.documentElement.style.backgroundColor = MODAL_THEME;
   }
   /* Stop everything the current sign flow is doing: bump the generation so
      late timers / fetch callbacks from the old flow ignore themselves,
      abort the in-flight request (a cancelled POST /api/sign should not
      dispatch a workflow nobody wants any more), and clear the poll timer. */
+  /* The running flow is persisted (sessionStorage) so it can resume if iOS
+     discards the backgrounded tab and the page reloads: the sign job lives
+     server-side, so status polling alone can pick the flow back up. */
+  var FLOW_KEY = 'si-sign-flow';
+  function saveFlow(){
+    try{
+      sessionStorage.setItem(FLOW_KEY, JSON.stringify({
+        cert: currentCert, certLabel: currentCertLabel,
+        ipa: currentIpa, ipaLabel: currentIpaLabel,
+        startedAt: startedAt
+      }));
+    }catch(_){}
+  }
+  function clearFlow(){
+    try{ sessionStorage.removeItem(FLOW_KEY); }catch(_){}
+  }
+
   function killSignFlow(){
     signGen++;
     pollingActive = false;
+    clearFlow();
     if(hiddenAt){ hiddenTotal += Date.now() - hiddenAt; hiddenAt = 0; }
     if(signAbort){ try{ signAbort.abort(); }catch(_){} signAbort = null; }
     clearTimeout(pollTimer);
@@ -1117,6 +1137,7 @@
     modal.hidden = true;
     document.body.style.overflow = '';
     setThemeColor(PAGE_THEME);
+    document.documentElement.style.backgroundColor = '';
   }
 
   /* ---- certificate picker pane ---- */
@@ -1294,6 +1315,7 @@
 
   function fail(msg){
     pollingActive = false;
+    clearFlow();
     [].forEach.call(stepsEl.querySelectorAll('.sign-step.active'), function(li){
       li.classList.remove('active');
       li.classList.add('error');
@@ -1306,6 +1328,7 @@
   function finish(plistUrl, gen){
     if(gen !== signGen || dead) return; // flow was cancelled — don't touch the UI
     pollingActive = false;
+    clearFlow();
     mark('install', 'done');
     note('Signed with "' + currentCertLabel + '".');
     var itms = 'itms-services://?action=download-manifest&url=' + encodeURIComponent(plistUrl);
@@ -1401,7 +1424,14 @@
         }
       }).catch(function(err){
         if(gen !== signGen || dead) return;
-        if(err && err.name === 'AbortError') return; // cancelled — stay silent
+        if(err && err.name === 'AbortError'){
+          // Not a user cancel (that bumps the generation / sets dead, handled
+          // above): iOS killed the request while the page was backgrounded.
+          // Retry instead of letting the poll loop die silently.
+          note('Connection hiccup — retrying…');
+          poll();
+          return;
+        }
         note('Connection hiccup — retrying…');
         poll();
       });
@@ -1425,6 +1455,39 @@
     }
   });
   window.addEventListener('pageshow', resumeSignPoll);
+
+  /* If the page (re)loaded while a sign job was running — e.g. iOS discarded
+     the backgrounded tab — reopen the progress view and resume polling; the
+     server-side job is still going and status checks drive it to the end. */
+  function restoreSignFlow(){
+    var saved = null;
+    try{ saved = JSON.parse(sessionStorage.getItem(FLOW_KEY) || 'null'); }catch(_){}
+    if(!saved || !saved.cert || !saved.ipa || !saved.startedAt) return;
+    if(Date.now() - saved.startedAt > MAX_WAIT_MS){ clearFlow(); return; }
+    currentIpa = saved.ipa; currentIpaLabel = saved.ipaLabel || saved.ipa;
+    currentCert = saved.cert; currentCertLabel = saved.certLabel || saved.cert;
+    startedAt = saved.startedAt;
+    hiddenAt = 0; hiddenTotal = 0;
+    dead = false;
+    signAbort = new AbortController();
+    titleEl.textContent = currentIpaLabel;
+    certEl.textContent = currentCertLabel;
+    appEl.textContent = currentIpaLabel;
+    if(installAppEl) installAppEl.textContent = currentIpaLabel;
+    certPickPane.hidden = true;
+    signProgressPane.hidden = false;
+    signBack.hidden = false;
+    resetSteps();
+    mark('request', 'done');
+    mark('sign', 'active');
+    actionsEl.hidden = true;
+    retryBtn.hidden = true;
+    installBtn.setAttribute('href', '#');
+    note('Signing ' + currentIpaLabel + ' with zsign… (' + elapsed() + ' elapsed)');
+    openModal();
+    poll(true);
+  }
+  restoreSignFlow();
 
   function startSign(ipaId, ipaLabel, cert, certLabel){
     if(!cert) return;
@@ -1452,6 +1515,7 @@
     postJSON('/api/sign', { cert: cert, ipa: ipaId }, signAbort.signal).then(function(res){
       if(gen !== signGen || dead) return;
       if(res.error) throw new Error(res.error);
+      saveFlow(); // from here on a server-side job exists — make the flow resumable
       if(res.state === 'complete' && res.reused){
         // Already signed: play a simulated sign flow so the
         // experience matches a fresh sign, then open the installer.
@@ -1477,7 +1541,16 @@
       }
     }).catch(function(err){
       if(gen !== signGen || dead) return;
-      if(err && err.name === 'AbortError') return; // user cancelled — stay silent
+      if(err && err.name === 'AbortError'){
+        // Not a user cancel (handled above): iOS killed the request while
+        // the page was backgrounded. The job may already exist server-side —
+        // pick it up through status polling instead of freezing the flow.
+        mark('request', 'done');
+        mark('sign', 'active');
+        note('Connection interrupted — reconnecting…');
+        poll(true);
+        return;
+      }
       fail(err && err.message ? err.message : 'Could not start the sign job.');
     });
   }
