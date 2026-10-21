@@ -1089,15 +1089,23 @@
   }
 
   /* While the sign modal is open, sync the browser chrome (status bar and
-     bottom bar) to the modal's dark background instead of the page blue. */
+     bottom bar) to the dimmed page background around the modal:
+     rgba(0,0,0,.6) over the page blue #011a5c ≈ #000a25.
+     Safari 26 ignores the theme-color meta for its Liquid Glass bars — it
+     samples the BODY element's background-color instead (this page's body
+     is transparent by design, so it fell back to the page blue). Setting
+     body/html background-color while the modal is open is what actually
+     re-tints the bars; theme-color is kept in sync for older Safari. */
   var metaTheme = document.getElementById('metaTheme');
-  var PAGE_THEME = '#011a5c', MODAL_THEME = '#111624';
+  var PAGE_THEME = '#011a5c', MODAL_THEME = '#000a25';
   function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
 
   function openModal(){
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     setThemeColor(MODAL_THEME);
+    document.body.style.backgroundColor = MODAL_THEME;
+    document.documentElement.style.backgroundColor = MODAL_THEME;
   }
   /* Stop everything the current sign flow is doing: bump the generation so
      late timers / fetch callbacks from the old flow ignore themselves,
@@ -1117,6 +1125,8 @@
     modal.hidden = true;
     document.body.style.overflow = '';
     setThemeColor(PAGE_THEME);
+    document.body.style.backgroundColor = '';
+    document.documentElement.style.backgroundColor = '';
   }
 
   /* ---- certificate picker pane ---- */
