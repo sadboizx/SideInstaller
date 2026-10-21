@@ -17,13 +17,16 @@
 #      WKCompanionAppBundleIdentifier,
 #      NSExtension.NSExtensionAttributes.WKAppBundleIdentifier,
 #      NSExtension.NSExtensionFileProviderDocumentGroup) — rồi mới sign.
-#   4. Build zsign từ source (https://github.com/zhlynn/zsign)
-#   4. Sign IPA bằng .p12 + .mobileprovision của cert → signed.ipa
-#   5. Upload IPA đã sign lên GitHub Release (tag <ipa>-signed-<cert>)
-#   6. Sinh public/output/<ipa>-<cert>.plist (OTA manifest), key `url`
+#   4. Embed signing-assets: tạo folder `signing-assets/SideInstaller/`
+#      bên trong .app (kèm signed.json ghi cert, bundle id cuối, thời gian
+#      ký, run id) TRƯỚC khi sign để chữ ký của zsign bao phủ luôn folder.
+#   5. Build zsign từ source (https://github.com/zhlynn/zsign)
+#   6. Sign IPA bằng .p12 + .mobileprovision của cert → signed.ipa
+#   7. Upload IPA đã sign lên GitHub Release (tag <ipa>-signed-<cert>)
+#   8. Sinh public/output/<ipa>-<cert>.plist (OTA manifest), key `url`
 #      trỏ vào release asset (bundle-identifier trong manifest được đọc từ
 #      IPA đã sign nên tự khớp với bundle id đã qua PPQ)
-#   7. Commit plist → Pages auto-redeploy → manifest lên sóng tại
+#   9. Commit plist → Pages auto-redeploy → manifest lên sóng tại
 #      https://<site>/output/<ipa>-<cert>.plist
 #
 # Repository secrets cần thiết (Settings → Secrets and variables → Actions):
@@ -295,6 +298,93 @@ jobs:
           out(ipa_path=work, applied="true", suffix=suffix, ppqcheck=str(ppq_check))
           PYEOF
 
+      - name: Embed signing-assets provenance folder
+        id: assets
+        env:
+          IPA_IN: ${{ steps.ppq.outputs.ipa_path }}
+          IPA_ID: ${{ steps.ipa.outputs.ipa_id }}
+          IPA_NAME: ${{ steps.ipa.outputs.ipa_name }}
+          CERT: ${{ steps.prep.outputs.cert }}
+          PPQ_APPLIED: ${{ steps.ppq.outputs.applied }}
+          PPQ_SUFFIX: ${{ steps.ppq.outputs.suffix }}
+        run: |
+          python3 - <<'PYEOF'
+          # Embed a provenance folder inside the .app BEFORE signing, so
+          # zsign's code signature covers it:
+          #   Payload/<App>.app/signing-assets/SideInstaller/signed.json
+          # Records which certificate signed this build, the final bundle
+          # id (post-PPQ), and when / by which workflow run it was signed.
+          # Auxiliary metadata: any failure here warns and passes the IPA
+          # through unsigned-assets rather than failing the whole sign.
+          import datetime, json, os, plistlib, shutil, sys, zipfile
+
+          src = os.environ["IPA_IN"]
+          work = "assets_unsigned.ipa"
+
+          def out(**kv):
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                  for k, v in kv.items():
+                      f.write(f"{k}={v}\n")
+
+          try:
+              with zipfile.ZipFile(src, "r") as zin:
+                  names = zin.namelist()
+                  info_name = next(
+                      (n for n in names
+                       if n.startswith("Payload/") and n.count("/") == 2
+                       and n.endswith(".app/Info.plist")),
+                      None,
+                  )
+                  if not info_name:
+                      print("::warning::Main Info.plist not found — skipping signing-assets embed")
+                      out(ipa_path=src, embedded="false")
+                      sys.exit(0)
+                  info = plistlib.loads(zin.read(info_name))
+
+              app_dir = info_name.rsplit("/", 1)[0]  # Payload/<App>.app
+              meta = {
+                  "signer": "SideInstaller",
+                  "site": "https://sideinstaller.pages.dev",
+                  "app": {
+                      "id": os.environ.get("IPA_ID", ""),
+                      "name": os.environ.get("IPA_NAME", ""),
+                      "bundleId": info.get("CFBundleIdentifier", ""),
+                      "version": str(info.get("CFBundleShortVersionString")
+                                     or info.get("CFBundleVersion") or ""),
+                  },
+                  "certificate": os.environ.get("CERT", ""),
+                  "ppq": {
+                      "applied": os.environ.get("PPQ_APPLIED") == "true",
+                      "suffix": os.environ.get("PPQ_SUFFIX", ""),
+                  },
+                  "signedAt": datetime.datetime.now(datetime.timezone.utc)
+                              .strftime("%Y-%m-%dT%H:%M:%SZ"),
+                  "workflow": {
+                      "repo": os.environ.get("GITHUB_REPOSITORY", ""),
+                      "runId": os.environ.get("GITHUB_RUN_ID", ""),
+                      "runNumber": os.environ.get("GITHUB_RUN_NUMBER", ""),
+                  },
+              }
+              payload = (json.dumps(meta, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+              target = f"{app_dir}/signing-assets/SideInstaller/signed.json"
+
+              with zipfile.ZipFile(src, "r") as zin:
+                  with zipfile.ZipFile(work, "w", zipfile.ZIP_DEFLATED) as zout:
+                      for item in zin.infolist():
+                          if item.filename == target:
+                              continue  # replace any stale copy from a previous embed
+                          zout.writestr(item, zin.read(item.filename))
+                      zout.writestr(target, payload)
+              print(f"embedded {target}")
+              print(payload.decode("utf-8"))
+              out(ipa_path=work, embedded="true")
+          except SystemExit:
+              raise
+          except Exception as exc:
+              print(f"::warning::signing-assets embed failed ({exc}) — continuing without it")
+              out(ipa_path=src, embedded="false")
+          PYEOF
+
       - name: Build zsign from source
         run: |
           set -euo pipefail
@@ -315,7 +405,7 @@ jobs:
           if [ -n "${P12_PASS:-}" ]; then
             args+=(-p "$P12_PASS")
           fi
-          args+=("${{ steps.ppq.outputs.ipa_path }}")
+          args+=("${{ steps.assets.outputs.ipa_path }}")
           "$ZSIGN_BIN" "${args[@]}"
           ls -lh signed.ipa
 
@@ -444,4 +534,5 @@ jobs:
             else
               echo "- PPQ Protection: skipped (PPQCheck=${{ steps.ppq.outputs.ppqcheck }})"
             fi
+            echo "- Signing assets: \`signing-assets/SideInstaller/signed.json\` embedded: ${{ steps.assets.outputs.embedded }}"
           } >> "$GITHUB_STEP_SUMMARY"
