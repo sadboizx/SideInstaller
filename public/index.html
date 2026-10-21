@@ -6,8 +6,19 @@
 <link rel="icon" type="image/png" href="app-icon.png">
 <link rel="apple-touch-icon" href="app-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#011a5c">
+<script>
+/* Apply the saved theme + language before first paint (no flash). */
+(function(){try{
+  var t=localStorage.getItem('si-theme');
+  if(t) document.documentElement.setAttribute('data-theme',t);
+  var l=localStorage.getItem('si-lang')||((navigator.language||'en').toLowerCase().indexOf('vi')===0?'vi':'en');
+  document.documentElement.setAttribute('data-lang',l);
+  document.documentElement.lang=(l==='vi'?'vi':'en');
+  if(t==='light'){var m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content','#e9eef9');}
+}catch(_){}})();
+</script>
 <style>
   /* Palette mirrors the app's brand blues: accent #2170F5 -> accent2 #4DADFF.
      The page sits on one flat deep navy (--page), the same tone the brand glow
@@ -23,6 +34,7 @@
     --brand:linear-gradient(135deg,var(--accent),var(--accent2));
     --good:#34d399; --warn:#fbbf24; --crit:#fb923c; --bad:#f87171;
     --radius:22px; --radius-btn:18px; --radius-sm:14px;
+    color-scheme:dark;
   }
   *{box-sizing:border-box}
   /* overflow-x:clip on the root kills any phantom horizontal overflow. Without
@@ -437,28 +449,82 @@
   .footer{margin-top:40px; text-align:center; color:var(--faint); font-size:13px}
   .footer a{color:var(--muted); text-decoration:none}
   .footer a:hover{color:var(--text)}
+
+  /* ---- site controls: language switch + theme toggle ---- */
+  .site-controls{display:flex; justify-content:flex-end; align-items:center; gap:8px; margin:2px 0 4px}
+  .lang-switch{
+    display:flex; gap:2px; padding:3px;
+    background:var(--card); border:1px solid var(--stroke); border-radius:999px;
+  }
+  .lang-switch button{
+    padding:5px 13px; font-family:inherit; font-size:12.5px; font-weight:700;
+    color:var(--muted); background:transparent; border:0; border-radius:999px; cursor:pointer;
+    transition:background .14s, color .14s;
+  }
+  .lang-switch button.on{color:#fff; background:var(--brand)}
+  .theme-btn{
+    display:grid; place-items:center; width:36px; height:36px; padding:0;
+    color:var(--text); background:var(--card); border:1px solid var(--stroke);
+    border-radius:999px; cursor:pointer; transition:background .14s, border-color .14s;
+  }
+  .theme-btn:hover{background:var(--card-hover); border-color:var(--stroke-strong)}
+  .theme-btn svg{width:17px; height:17px}
+  .theme-btn .ic-sun{display:none}
+  html[data-theme="light"] .theme-btn .ic-sun{display:block}
+  html[data-theme="light"] .theme-btn .ic-moon{display:none}
+
+  /* ---- light theme: same variables, light values ---- */
+  html[data-theme="light"]{
+    --page:#e9eef9;
+    --card:rgba(255,255,255,.66); --card-hover:rgba(255,255,255,.92);
+    --stroke:rgba(13,38,99,.13); --stroke-strong:rgba(13,38,99,.24);
+    --text:#101a33; --muted:#3d4a68; --faint:#5b6a8c;
+    --glow:#e9eef9;
+    --good:#0e9f6e; --warn:#b45309; --crit:#ea580c; --bad:#dc2626;
+    color-scheme:light;
+  }
+  html[data-theme="light"] h1{color:#0b1736}
+  html[data-theme="light"] .logo{box-shadow:0 12px 40px rgba(33,112,245,.25), 0 18px 60px rgba(120,150,220,.35), inset 0 1px 0 rgba(255,255,255,.06)}
+  html[data-theme="light"] .modal-card{background:rgba(255,255,255,.94); box-shadow:0 24px 70px rgba(15,35,90,.25)}
+  html[data-theme="light"] .modal-backdrop{background:rgba(15,23,48,.4)}
+  html[data-theme="light"] .step-card code,
+  html[data-theme="light"] .howto-body code{background:rgba(13,38,99,.08)}
+  html[data-theme="light"] .ipa-icon{background:rgba(13,38,99,.06)}
+  html[data-theme="light"] .tos-gate .box{background:rgba(13,38,99,.06)}
+  html[data-theme="light"] .cert-sort{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233d4a68' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")}
 </style>
 </head>
 <body>
 <div class="bg" aria-hidden="true"></div>
 <div class="wrap">
 
+  <div class="site-controls">
+    <div class="lang-switch" role="group" aria-label="Language">
+      <button type="button" data-lang-btn="en">EN</button>
+      <button type="button" data-lang-btn="vi">VI</button>
+    </div>
+    <button type="button" class="theme-btn" id="themeBtn" aria-label="Toggle dark / light theme">
+      <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </div>
+
   <header class="hero">
     <div class="logo"><img src="app-icon.png" alt="SideInstaller"></div>
     <h1>SideInstaller</h1>
-    <p class="tagline">On-device sideloader. Follow the three steps below to get set up.</p>
+    <p class="tagline" data-i18n="tagline">On-device sideloader. Follow the three steps below to get set up.</p>
     <div class="badges">
-      <span class="badge">Version <b>1.0</b></span>
-      <span class="badge"><b id="certCount">…</b> certificates</span>
+      <span class="badge"><span data-i18n="version">Version</span> <b>1.0</b></span>
+      <span class="badge"><b id="certCount">…</b> <span data-i18n="certificates">certificates</span></span>
     </div>
     <div class="links social">
       <button type="button" class="link-btn youtube" id="tutorialBtn" aria-haspopup="dialog" aria-controls="tutorialModal">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-        Tutorial
+        <span data-i18n="tutorial">Tutorial</span>
       </button>
       <a class="link-btn discord" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.211.375-.446.865-.61 1.249a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.617-1.25.077.077 0 0 0-.079-.036A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.1 14.1 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.009c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.893.077.077 0 0 0-.041.106c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.331c-1.182 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.182 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-        Join the Discord
+        <span data-i18n="discord">Join the Discord</span>
       </a>
       <a class="link-btn kofi" rel="noopener">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
@@ -468,7 +534,7 @@
     <div class="links repo">
       <a class="link-btn ipa" download rel="noopener">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
-        Download IPA
+        <span data-i18n="downloadIpa">Download IPA</span>
       </a>
       <a class="link-btn github" rel="noopener">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23a11.5 11.5 0 0 1 3.003-.404c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12z"/></svg>
@@ -478,32 +544,32 @@
   </header>
 
   <div class="notice">
-    <b>Note</b>
-    <p>SideInstaller is a free iOS sideloading platform. Sideload third-party apps and tweaks not available on the App Store — with one-tap signing, delivered over the air. The included anti-revoke DNS profile keeps revoked certificates operational. No computer or jailbreak required.</p>
+    <b data-i18n="noteTitle">Note</b>
+    <p data-i18n="noteBody">SideInstaller is a free iOS sideloading platform. Sideload third-party apps and tweaks not available on the App Store — with one-tap signing, delivered over the air. The included anti-revoke DNS profile keeps revoked certificates operational. No computer or jailbreak required.</p>
   </div>
 
   <label class="tos-gate">
     <input type="checkbox" id="tosCheck">
     <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></span>
-    <span class="tos-text">I have read and accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>.</span>
+    <span class="tos-text" data-i18n-html="tosHtml">I have read and accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>.</span>
   </label>
 
   <section class="step" id="setup">
     <div class="step-head">
       <span class="step-num">1</span>
       <div>
-        <h2 class="step-title">Setup</h2>
+        <h2 class="step-title" data-i18n="setup">Setup</h2>
       </div>
     </div>
     <a class="install-btn" href="SideInstallerDNS.mobileconfig">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/><path d="M12 3a15.3 15.3 0 0 1 0 18"/><path d="M12 3a15.3 15.3 0 0 0 0 18"/></svg>
-      Install DNS Profile
+      <span data-i18n="installDns">Install DNS Profile</span>
     </a>
     <div class="step-card">
       <ol>
-        <li>Tap <b>Install DNS Profile</b> above and tap <b>Allow</b> when Safari asks to download the configuration profile.</li>
-        <li>Open <code>Settings</code> and tap <b>Profile Downloaded</b> (or go to <code>Settings → General → VPN &amp; Device Management</code>), then tap <b>Install</b>.</li>
-        <li>Apply the DNS: in <code>Settings → General → VPN &amp; Device Management</code>, open <b>DNS</b> and make sure <b>SideInstaller</b> is selected. Keep it enabled until setup is complete.</li>
+        <li data-i18n-html="setupLi1">Tap <b>Install DNS Profile</b> above and tap <b>Allow</b> when Safari asks to download the configuration profile.</li>
+        <li data-i18n-html="setupLi2">Open <code>Settings</code> and tap <b>Profile Downloaded</b> (or go to <code>Settings → General → VPN &amp; Device Management</code>), then tap <b>Install</b>.</li>
+        <li data-i18n-html="setupLi3">Apply the DNS: in <code>Settings → General → VPN &amp; Device Management</code>, open <b>DNS</b> and make sure <b>SideInstaller</b> is selected. Keep it enabled until setup is complete.</li>
       </ol>
     </div>
   </section>
@@ -512,8 +578,8 @@
     <div class="step-head">
       <span class="step-num">2</span>
       <div>
-        <h2 class="step-title">Signing</h2>
-        <p class="step-sub">Pick an app and tap <b>Sign</b>, then choose a certificate — signing is automatic.</p>
+        <h2 class="step-title" data-i18n="signing">Signing</h2>
+        <p class="step-sub" data-i18n-html="signingSub">Pick an app and tap <b>Sign</b>, then choose a certificate — signing is automatic.</p>
       </div>
     </div>
 
@@ -523,15 +589,15 @@
     </main>
 
     <details class="howto">
-      <summary>How to install</summary>
+      <summary><span data-i18n="howto">How to install</span></summary>
       <div class="howto-body">
         <ol>
-          <li>Open this page <b>on your iPhone or iPad in Safari</b>.</li>
-          <li>Pick an app above and tap <b>Sign</b>.</li>
-          <li>Wait while the app signs automated — once it's ready, tap Install on the prompt.</li>
-          <li>The app now installs on your Home Screen — wait until the app is ready.</li>
-          <li>Go to <code>Settings → General → VPN &amp; Device Management</code>, tap the developer profile, and <b>Trust</b> it.</li>
-          <li>Launch the app. If one certificate is revoked or won't open, just sign app with another certificate.</li>
+          <li data-i18n-html="howtoLi1">Open this page <b>on your iPhone or iPad in Safari</b>.</li>
+          <li data-i18n-html="howtoLi2">Pick an app above and tap <b>Sign</b>.</li>
+          <li data-i18n-html="howtoLi3">Wait while the app signs automated — once it's ready, tap Install on the prompt.</li>
+          <li data-i18n-html="howtoLi4">The app now installs on your Home Screen — wait until the app is ready.</li>
+          <li data-i18n-html="howtoLi5">Go to <code>Settings → General → VPN &amp; Device Management</code>, tap the developer profile, and <b>Trust</b> it.</li>
+          <li data-i18n-html="howtoLi6">Launch the app. If one certificate is revoked or won't open, just sign app with another certificate.</li>
         </ol>
       </div>
     </details>
@@ -541,22 +607,22 @@
     <div class="step-head">
       <span class="step-num">3</span>
       <div>
-        <h2 class="step-title">Completion</h2>
-        <p class="step-sub">You're all set.</p>
+        <h2 class="step-title" data-i18n="completion">Completion</h2>
+        <p class="step-sub" data-i18n="allSet">You're all set.</p>
       </div>
     </div>
     <div class="step-card">
-      <p>That's it. Your signed apps appear on the Home Screen - go to <code>Settings → General → VPN &amp; Device Management → ENTERPRISE APP → Trust</code></p>
-      <div class="callout">
+      <p data-i18n-html="completionBody">That's it. Your signed apps appear on the Home Screen - go to <code>Settings → General → VPN &amp; Device Management → ENTERPRISE APP → Trust</code></p>
+      <div class="callout" data-i18n-html="calloutHtml">
         <b style="color: #f87171;">IMPORTANT:</b> Once an app is installed, leave the <code>DNS Profile</code> exactly as it is — <b>DNS must stay ON at all times.</b> It is the only thing standing between these revoked certificates and <code>Apple's servers:</code> <b style="color: #f87171;">Disable OR Delete it your apps stop working.</b> Likewise, <b style="color: #f87171;">Do not use a VPN</b> — as VPN traffic bypasses the DNS filter and your apps may get revoked.
       </div>
     </div>
   </section>
 
   <footer class="footer">
-    Built automatically &middot; <span id="certStats">signed with 51 certificate(s), 0 currently valid</span>
-    <br>Last updated: <span id="lastUpdated">—</span>
-    <br><a href="terms.html">Terms of Service</a>
+    <span data-i18n="footerBuilt">Built automatically</span> &middot; <span id="certStats">signed with 51 certificate(s), 0 currently valid</span>
+    <br><span data-i18n="lastUpdated">Last updated:</span> <span id="lastUpdated">—</span>
+    <br><a href="terms.html" data-i18n="tosLink">Terms of Service</a>
   </footer>
 
 </div>
@@ -565,11 +631,11 @@
   <div class="modal-backdrop" data-close></div>
   <div class="modal-card" id="tutorialCard">
     <div class="modal-head">
-      <button type="button" class="modal-back" id="tutorialBack" aria-label="Back" hidden>
+      <button type="button" class="modal-back" id="tutorialBack" aria-label="Back" data-i18n-aria="back" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
       <h3 class="modal-title" id="tutorialTitle">Language</h3>
-      <button type="button" class="modal-close" data-close aria-label="Close">
+      <button type="button" class="modal-close" data-close aria-label="Close" data-i18n-aria="close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
@@ -616,51 +682,248 @@
   <div class="modal-backdrop" data-sign-close></div>
   <div class="modal-card">
     <div class="modal-head">
-      <button type="button" class="modal-back" id="signBack" aria-label="Back" hidden>
+      <button type="button" class="modal-back" id="signBack" aria-label="Back" data-i18n-aria="back" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
       <h3 class="modal-title" id="signTitle">Choose certificate</h3>
-      <button type="button" class="modal-close" data-sign-close aria-label="Close">
+      <button type="button" class="modal-close" data-sign-close aria-label="Close" data-i18n-aria="close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
 
     <div id="certPickPane">
-      <p class="sign-cert">Sign: <b id="signAppNamePick"></b></p>
+      <p class="sign-cert"><span data-i18n="signLabel">Sign:</span> <b id="signAppNamePick"></b></p>
       <div class="cert-search-wrap">
         <svg class="cert-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input type="search" id="certSearch" class="cert-search" placeholder="Search certificates..." aria-label="Search certificates" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <input type="search" id="certSearch" class="cert-search" placeholder="Search certificates..." aria-label="Search certificates" data-i18n-ph="searchPh" data-i18n-aria="searchAria" autocomplete="off" autocapitalize="off" spellcheck="false">
       </div>
-      <select id="certSort" class="cert-sort" aria-label="Sort certificates">
-        <option value="days-desc" selected>Most days left</option>
-        <option value="days-asc">Least days left</option>
-        <option value="name-az">Name A–Z</option>
-        <option value="name-za">Name Z–A</option>
-        <option value="favorites">Favorites</option>
+      <select id="certSort" class="cert-sort" aria-label="Sort certificates" data-i18n-aria="sortAria">
+        <option value="days-desc" selected data-i18n="sortDaysDesc">Most days left</option>
+        <option value="days-asc" data-i18n="sortDaysAsc">Least days left</option>
+        <option value="name-az" data-i18n="sortNameAz">Name A–Z</option>
+        <option value="name-za" data-i18n="sortNameZa">Name Z–A</option>
+        <option value="favorites" data-i18n="sortFav">Favorites</option>
       </select>
       <div class="cert-cards" id="certCards"></div>
       <p class="sign-note" id="certPickNote"></p>
     </div>
 
     <div id="signProgressPane" hidden>
-      <p class="sign-cert">Certificate: <b id="signCertName"></b></p>
+      <p class="sign-cert"><span data-i18n="certLabel">Certificate:</span> <b id="signCertName"></b></p>
       <ol class="sign-steps" id="signSteps">
-        <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span>Preparing to sign <small>(ubuntu-latest)</small></span></li>
+        <li class="sign-step" data-step="request"><span class="st" aria-hidden="true"></span><span data-i18n-html="stepRequestHtml">Preparing to sign <small>(ubuntu-latest)</small></span></li>
         <li class="sign-step" data-step="sign"><span class="st" aria-hidden="true"></span><span>Signing <b id="signAppName">the app</b> with this certificate <small>(zsign · GitHub Actions)</small></span></li>
-        <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span>Publishing install manifest</span></li>
+        <li class="sign-step" data-step="manifest"><span class="st" aria-hidden="true"></span><span data-i18n="stepManifest">Publishing install manifest</span></li>
         <li class="sign-step" data-step="install"><span class="st" aria-hidden="true"></span><span>Ready to install — <b id="signInstallAppName">the app</b>.ipa</span></li>
       </ol>
       <p class="sign-note" id="signNote" aria-live="polite"></p>
       <div class="sign-actions" id="signActions" hidden>
         <a class="install-btn" id="signInstallNow" href="#">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
-          Install now
+          <span data-i18n="installNow">Install now</span>
         </a>
-        <button type="button" id="signRetry" hidden>Try again</button>
+        <button type="button" id="signRetry" hidden data-i18n="tryAgain">Try again</button>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+/* ---- UI language (English / Vietnamese) + theme controls ----
+   Static strings carry data-i18n / data-i18n-html / data-i18n-ph /
+   data-i18n-aria attributes and are filled from DICT; dynamic strings
+   (sign flow notes, certificate cards, footer stats) go through
+   window.tUI(key, params). Switching re-renders the dynamic parts via
+   the 'si-lang-change' event. Both choices persist in localStorage
+   (si-lang / si-theme) and are pre-applied by the head bootstrap. */
+(function(){
+  var DICT = {
+    en: {
+      tagline: 'On-device sideloader. Follow the three steps below to get set up.',
+      version: 'Version', certificates: 'certificates',
+      tutorial: 'Tutorial', discord: 'Join the Discord', downloadIpa: 'Download IPA',
+      noteTitle: 'Note',
+      noteBody: 'SideInstaller is a free iOS sideloading platform. Sideload third-party apps and tweaks not available on the App Store — with one-tap signing, delivered over the air. The included anti-revoke DNS profile keeps revoked certificates operational. No computer or jailbreak required.',
+      tosHtml: 'I have read and accept the <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>.',
+      setup: 'Setup', installDns: 'Install DNS Profile',
+      setupLi1: 'Tap <b>Install DNS Profile</b> above and tap <b>Allow</b> when Safari asks to download the configuration profile.',
+      setupLi2: 'Open <code>Settings</code> and tap <b>Profile Downloaded</b> (or go to <code>Settings → General → VPN &amp; Device Management</code>), then tap <b>Install</b>.',
+      setupLi3: 'Apply the DNS: in <code>Settings → General → VPN &amp; Device Management</code>, open <b>DNS</b> and make sure <b>SideInstaller</b> is selected. Keep it enabled until setup is complete.',
+      signing: 'Signing',
+      signingSub: 'Pick an app and tap <b>Sign</b>, then choose a certificate — signing is automatic.',
+      howto: 'How to install',
+      howtoLi1: 'Open this page <b>on your iPhone or iPad in Safari</b>.',
+      howtoLi2: 'Pick an app above and tap <b>Sign</b>.',
+      howtoLi3: "Wait while the app signs automated — once it's ready, tap Install on the prompt.",
+      howtoLi4: 'The app now installs on your Home Screen — wait until the app is ready.',
+      howtoLi5: 'Go to <code>Settings → General → VPN &amp; Device Management</code>, tap the developer profile, and <b>Trust</b> it.',
+      howtoLi6: "Launch the app. If one certificate is revoked or won't open, just sign app with another certificate.",
+      completion: 'Completion', allSet: "You're all set.",
+      completionBody: 'That\'s it. Your signed apps appear on the Home Screen - go to <code>Settings → General → VPN &amp; Device Management → ENTERPRISE APP → Trust</code>',
+      calloutHtml: '<b style="color: #f87171;">IMPORTANT:</b> Once an app is installed, leave the <code>DNS Profile</code> exactly as it is — <b>DNS must stay ON at all times.</b> It is the only thing standing between these revoked certificates and <code>Apple\'s servers:</code> <b style="color: #f87171;">Disable OR Delete it your apps stop working.</b> Likewise, <b style="color: #f87171;">Do not use a VPN</b> — as VPN traffic bypasses the DNS filter and your apps may get revoked.',
+      footerBuilt: 'Built automatically', lastUpdated: 'Last updated:', tosLink: 'Terms of Service',
+      back: 'Back', close: 'Close', language: 'Language',
+      chooseCert: 'Choose certificate', signLabel: 'Sign:', certLabel: 'Certificate:',
+      searchPh: 'Search certificates...', searchAria: 'Search certificates', sortAria: 'Sort certificates',
+      sortDaysDesc: 'Most days left', sortDaysAsc: 'Least days left',
+      sortNameAz: 'Name A–Z', sortNameZa: 'Name Z–A', sortFav: 'Favorites',
+      stepRequestHtml: 'Preparing to sign <small>(ubuntu-latest)</small>',
+      stepManifest: 'Publishing install manifest',
+      stepSignTpl: 'Signing <b id="signAppName">{app}</b> with this certificate <small>(zsign · GitHub Actions)</small>',
+      stepInstallTpl: 'Ready to install — <b id="signInstallAppName">{app}</b>.ipa',
+      theApp: 'the app',
+      installNow: 'Install now', tryAgain: 'Try again',
+      sign: 'Sign', appListError: 'Could not load the app list.',
+      certStats: 'signed with {n} certificate(s), {m} currently valid',
+      expires: 'Expires', daysUnknown: 'expiry unknown',
+      daysExpired: '{d} days expired', daysLeft: '{d} days left',
+      noMatch: 'No certificates match your search.',
+      noFav: 'No favorites yet — tap the heart on a certificate to add it here.',
+      noCerts: 'No certificates available.',
+      loadingCerts: 'Loading certificates…',
+      certsError: 'Could not load certificates. Close and try again.',
+      favToggle: 'Toggle favorite',
+      notePreparing: 'Preparing to sign (ubuntu-latest)…',
+      stageQueued: 'Queued on GitHub Actions runner (ubuntu-latest)…',
+      stageBuild: 'Building zsign from source…',
+      stageSigning: 'Signing {app} with zsign…',
+      noteManifest: 'Publishing install manifest…',
+      noteReady: 'Ready to install — {app}.ipa…',
+      signedWith: 'Signed with "{cert}".',
+      noteSigningElapsed: 'Signing {app} with zsign… ({elapsed} elapsed)',
+      noteFinishing: 'Sign finished — publishing the install manifest…',
+      signFailed: 'The sign job failed. Try again or pick another certificate.',
+      noteWaiting: 'Waiting for the sign job to start…',
+      noteHiccup: 'Connection hiccup — retrying…',
+      noteTimeout: 'Timed out waiting for the sign job (30 min). Please try again.',
+      noteReused: 'Signed build found — publishing the install manifest…',
+      noteAlready: 'A sign job for this app + certificate is already running — waiting for it…',
+      noteStarted: 'GitHub Actions — signing {app}…',
+      unexpected: 'Unexpected response from the server.',
+      startFailed: 'Could not start the sign job.'
+    },
+    vi: {
+      tagline: 'Trình sideload ngay trên máy. Làm theo ba bước bên dưới để cài đặt.',
+      version: 'Phiên bản', certificates: 'chứng chỉ',
+      tutorial: 'Hướng dẫn', discord: 'Tham gia Discord', downloadIpa: 'Tải IPA',
+      noteTitle: 'Lưu ý',
+      noteBody: 'SideInstaller là nền tảng sideload iOS miễn phí. Cài các ứng dụng và tweak của bên thứ ba không có trên App Store — với ký một chạm, gửi qua mạng. Profile DNS chống thu hồi đi kèm giúp các chứng chỉ đã bị thu hồi vẫn hoạt động. Không cần máy tính hay jailbreak.',
+      tosHtml: 'Tôi đã đọc và đồng ý với <a href="terms.html" target="_blank" rel="noopener">Điều khoản dịch vụ</a>.',
+      setup: 'Cài đặt', installDns: 'Cài profile DNS',
+      setupLi1: 'Chạm <b>Cài profile DNS</b> ở phía trên và chạm <b>Allow</b> khi Safari hỏi tải profile cấu hình.',
+      setupLi2: 'Mở <code>Settings</code> và chạm <b>Profile Downloaded</b> (hoặc vào <code>Settings → General → VPN &amp; Device Management</code>), rồi chạm <b>Install</b>.',
+      setupLi3: 'Áp dụng DNS: trong <code>Settings → General → VPN &amp; Device Management</code>, mở <b>DNS</b> và đảm bảo <b>SideInstaller</b> đang được chọn. Giữ nó bật cho đến khi cài đặt xong.',
+      signing: 'Ký ứng dụng',
+      signingSub: 'Chọn một ứng dụng và chạm <b>Ký</b>, rồi chọn một chứng chỉ — việc ký hoàn toàn tự động.',
+      howto: 'Cách cài đặt',
+      howtoLi1: 'Mở trang này <b>trên iPhone hoặc iPad bằng Safari</b>.',
+      howtoLi2: 'Chọn một ứng dụng ở trên và chạm <b>Ký</b>.',
+      howtoLi3: 'Chờ trong lúc ứng dụng được ký tự động — khi sẵn sàng, chạm Install trên hộp thoại hiện ra.',
+      howtoLi4: 'Ứng dụng sẽ được cài lên Màn hình chính — chờ đến khi cài xong.',
+      howtoLi5: 'Vào <code>Settings → General → VPN &amp; Device Management</code>, chạm vào profile nhà phát triển và <b>Trust</b> (Tin cậy) nó.',
+      howtoLi6: 'Mở ứng dụng. Nếu một chứng chỉ bị thu hồi hoặc app không mở được, chỉ cần ký lại app bằng một chứng chỉ khác.',
+      completion: 'Hoàn tất', allSet: 'Mọi thứ đã sẵn sàng.',
+      completionBody: 'Vậy là xong. Các ứng dụng đã ký sẽ xuất hiện trên Màn hình chính - vào <code>Settings → General → VPN &amp; Device Management → ENTERPRISE APP → Trust</code>',
+      calloutHtml: '<b style="color: #f87171;">QUAN TRỌNG:</b> Sau khi một ứng dụng đã được cài, hãy để nguyên <code>DNS Profile</code> — <b>DNS phải luôn BẬT.</b> Nó là thứ duy nhất ngăn cách các chứng chỉ đã bị thu hồi này với <code>máy chủ của Apple:</code> <b style="color: #f87171;">Tắt HOẶC Xóa nó, ứng dụng của bạn sẽ ngừng hoạt động.</b> Tương tự, <b style="color: #f87171;">Không dùng VPN</b> — vì lưu lượng VPN bỏ qua bộ lọc DNS và ứng dụng của bạn có thể bị thu hồi.',
+      footerBuilt: 'Được dựng tự động', lastUpdated: 'Cập nhật lần cuối:', tosLink: 'Điều khoản dịch vụ',
+      back: 'Quay lại', close: 'Đóng', language: 'Ngôn ngữ',
+      chooseCert: 'Chọn chứng chỉ', signLabel: 'Ký:', certLabel: 'Chứng chỉ:',
+      searchPh: 'Tìm chứng chỉ...', searchAria: 'Tìm chứng chỉ', sortAria: 'Sắp xếp chứng chỉ',
+      sortDaysDesc: 'Nhiều ngày nhất', sortDaysAsc: 'Ít ngày nhất',
+      sortNameAz: 'Tên A–Z', sortNameZa: 'Tên Z–A', sortFav: 'Yêu thích',
+      stepRequestHtml: 'Đang chuẩn bị ký <small>(ubuntu-latest)</small>',
+      stepManifest: 'Đang xuất bản manifest cài đặt',
+      stepSignTpl: 'Đang ký <b id="signAppName">{app}</b> bằng chứng chỉ này <small>(zsign · GitHub Actions)</small>',
+      stepInstallTpl: 'Sẵn sàng cài đặt — <b id="signInstallAppName">{app}</b>.ipa',
+      theApp: 'ứng dụng',
+      installNow: 'Cài đặt ngay', tryAgain: 'Thử lại',
+      sign: 'Ký', appListError: 'Không tải được danh sách ứng dụng.',
+      certStats: 'đã ký bằng {n} chứng chỉ, {m} đang còn hiệu lực',
+      expires: 'Hết hạn', daysUnknown: 'không rõ hạn',
+      daysExpired: 'đã hết hạn {d} ngày', daysLeft: 'còn {d} ngày',
+      noMatch: 'Không có chứng chỉ nào khớp với tìm kiếm.',
+      noFav: 'Chưa có mục yêu thích — chạm biểu tượng tim trên một chứng chỉ để thêm vào đây.',
+      noCerts: 'Không có chứng chỉ nào.',
+      loadingCerts: 'Đang tải chứng chỉ…',
+      certsError: 'Không tải được chứng chỉ. Đóng và thử lại.',
+      favToggle: 'Bật/tắt yêu thích',
+      notePreparing: 'Đang chuẩn bị ký (ubuntu-latest)…',
+      stageQueued: 'Đang xếp hàng trên GitHub Actions runner (ubuntu-latest)…',
+      stageBuild: 'Đang build zsign từ mã nguồn…',
+      stageSigning: 'Đang ký {app} bằng zsign…',
+      noteManifest: 'Đang xuất bản manifest cài đặt…',
+      noteReady: 'Sẵn sàng cài đặt — {app}.ipa…',
+      signedWith: 'Đã ký bằng "{cert}".',
+      noteSigningElapsed: 'Đang ký {app} bằng zsign… (đã chờ {elapsed})',
+      noteFinishing: 'Ký xong — đang xuất bản manifest cài đặt…',
+      signFailed: 'Tác vụ ký thất bại. Thử lại hoặc chọn chứng chỉ khác.',
+      noteWaiting: 'Đang chờ tác vụ ký bắt đầu…',
+      noteHiccup: 'Kết nối chập chờn — đang thử lại…',
+      noteTimeout: 'Hết thời gian chờ tác vụ ký (30 phút). Vui lòng thử lại.',
+      noteReused: 'Đã có bản ký sẵn — đang xuất bản manifest cài đặt…',
+      noteAlready: 'Một tác vụ ký cho ứng dụng + chứng chỉ này đang chạy — đang chờ…',
+      noteStarted: 'GitHub Actions — đang ký {app}…',
+      unexpected: 'Phản hồi bất ngờ từ máy chủ.',
+      startFailed: 'Không bắt đầu được tác vụ ký.'
+    }
+  };
+  var lang = document.documentElement.getAttribute('data-lang') || 'en';
+  if(!DICT[lang]) lang = 'en';
+  function t(key, params){
+    var s = (DICT[lang] && DICT[lang][key]) || DICT.en[key] || key;
+    if(params){ for(var k in params) s = s.split('{' + k + '}').join(String(params[k])); }
+    return s;
+  }
+  window.SI_LANG = lang;
+  window.tUI = t;
+
+  function each(list, fn){ [].forEach.call(list, fn); }
+  function applyI18n(){
+    each(document.querySelectorAll('[data-i18n]'), function(el){ el.textContent = t(el.getAttribute('data-i18n')); });
+    each(document.querySelectorAll('[data-i18n-html]'), function(el){ el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+    each(document.querySelectorAll('[data-i18n-ph]'), function(el){ el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
+    each(document.querySelectorAll('[data-i18n-aria]'), function(el){ el.setAttribute('aria-label', t(el.getAttribute('data-i18n-aria'))); });
+    each(document.querySelectorAll('[data-lang-btn]'), function(b){
+      b.classList.toggle('on', b.getAttribute('data-lang-btn') === lang);
+    });
+  }
+  window.applyI18n = applyI18n;
+
+  function setLang(l){
+    if(!DICT[l] || l === lang && window.SI_LANG === l) { /* still re-apply */ }
+    if(!DICT[l]) return;
+    lang = l; window.SI_LANG = l;
+    try{ localStorage.setItem('si-lang', l); }catch(_){}
+    document.documentElement.setAttribute('data-lang', l);
+    document.documentElement.lang = (l === 'vi' ? 'vi' : 'en');
+    applyI18n();
+    var ev;
+    try{ ev = new CustomEvent('si-lang-change'); }
+    catch(_){ ev = document.createEvent('Event'); ev.initEvent('si-lang-change', true, true); }
+    window.dispatchEvent(ev);
+  }
+  window.setUILang = setLang;
+
+  function setTheme(th){
+    document.documentElement.setAttribute('data-theme', th);
+    try{ localStorage.setItem('si-theme', th); }catch(_){}
+    var m = document.querySelector('meta[name="theme-color"]');
+    if(m) m.setAttribute('content', th === 'light' ? '#e9eef9' : '#011a5c');
+  }
+  window.setUITheme = setTheme;
+
+  each(document.querySelectorAll('[data-lang-btn]'), function(b){
+    b.addEventListener('click', function(){ setLang(b.getAttribute('data-lang-btn')); });
+  });
+  var themeBtn = document.getElementById('themeBtn');
+  if(themeBtn) themeBtn.addEventListener('click', function(){
+    var cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    setTheme(cur === 'light' ? 'dark' : 'light');
+  });
+
+  applyI18n();
+})();
+</script>
 
 <script>
 (function(){
@@ -689,10 +952,18 @@
     btn.type='button'; btn.className='sign-btn';
     btn.setAttribute('data-ipa', app.id);
     btn.setAttribute('data-label', app.name);
-    btn.textContent='Sign';
+    btn.textContent=(window.tUI?window.tUI('sign'):'Sign');
 
     row.appendChild(icon); row.appendChild(info); row.appendChild(btn);
     return row;
+  }
+
+  var lastCertTotal=null, lastCertValid=0;
+  function renderCertStats(){
+    var statsEl = document.getElementById('certStats');
+    if(statsEl && lastCertTotal!==null)
+      statsEl.textContent = window.tUI ? window.tUI('certStats',{n:lastCertTotal,m:lastCertValid})
+        : 'signed with ' + lastCertTotal + ' certificate(s), ' + lastCertValid + ' currently valid';
   }
 
   function loadCerts(){
@@ -701,9 +972,9 @@
       .then(function(list){
         list = list || [];
         if(certCountEl) certCountEl.textContent=String(list.length);
-        var valid = list.filter(function(c){ return c && c.status === 'valid'; }).length;
-        var statsEl = document.getElementById('certStats');
-        if(statsEl) statsEl.textContent = 'signed with ' + list.length + ' certificate(s), ' + valid + ' currently valid';
+        lastCertTotal = list.length;
+        lastCertValid = list.filter(function(c){ return c && c.status === 'valid'; }).length;
+        renderCertStats();
       })
       .catch(function(err){
         console.error('Failed to load /api/certs', err);
@@ -760,12 +1031,18 @@
       })
       .catch(function(err){
         console.error('Failed to load ipas.json', err);
-        ipaList.innerHTML='<p class="ipa-error">Could not load the app list.</p>';
+        ipaList.innerHTML='<p class="ipa-error">'+(window.tUI?window.tUI('appListError'):'Could not load the app list.')+'</p>';
       });
   }
 
   loadCerts();
   loadIpas();
+
+  /* Re-render the language-dependent bits when the UI language changes. */
+  window.addEventListener('si-lang-change', function(){
+    renderCertStats();
+    loadIpas();
+  });
 
   /* TOS gate: everything below the checkbox stays dimmed and
      non-interactive (including plain text) until the box is ticked.
@@ -839,7 +1116,7 @@
     if(next===step) return;
     var cur=panes[step], nxt=panes[next];
     if(next===2) buildVideos();
-    tutTitle.textContent = next===0 ? STRINGS.en.lang : next===1 ? t('topic') : t(topic);
+    tutTitle.textContent = next===0 ? (window.tUI?window.tUI('language'):'Language') : next===1 ? t('topic') : t(topic);
     tutBack.hidden = next===0;
     tutCard.classList.toggle('wide', next===2);
 
@@ -910,7 +1187,7 @@
     videos.textContent='';   /* drops the iframes so playback stops */
     tutCard.classList.remove('wide');
     tutBack.hidden=true;
-    tutTitle.textContent=STRINGS.en.lang;
+    tutTitle.textContent=(window.tUI?window.tUI('language'):'Language');
     applyLang();
     /* No height tween on the way in — the card should just appear at size. */
     wizard.classList.add('no-anim');
@@ -1010,6 +1287,7 @@
   var retryBtn = document.getElementById('signRetry');
 
   var ORDER = ['request','sign','manifest','install'];
+  function tUI2(k, p){ return window.tUI ? window.tUI(k, p) : k; }
   var pollTimer = null;
   var dead = false;
   /* Generation token: bumped on every cancel / new flow, so late timers and
@@ -1053,9 +1331,9 @@
     return 'good';
   }
   function daysLabel(d){
-    if(d <= -999999) return 'expiry unknown';
-    if(d < 0) return Math.abs(d) + ' days expired';
-    return d + ' days left';
+    if(d <= -999999) return tUI2('daysUnknown');
+    if(d < 0) return tUI2('daysExpired', {d: Math.abs(d)});
+    return tUI2('daysLeft', {d: d});
   }
 
   function resetSteps(){
@@ -1138,7 +1416,7 @@
     var meta = document.createElement('p');
     meta.className = 'cert-card-meta';
     var d = (c.days != null ? c.days : -999999);
-    if(c.expires){ meta.appendChild(document.createTextNode('Expires ' + c.expires + ' · ')); }
+    if(c.expires){ meta.appendChild(document.createTextNode(tUI2('expires') + ' ' + c.expires + ' · ')); }
     var span = document.createElement('span');
     span.className = 'days ' + daysClass(d);
     span.textContent = daysLabel(d);
@@ -1159,7 +1437,7 @@
     var fav = document.createElement('button');
     fav.type = 'button';
     fav.className = 'cert-fav' + (isFav(val) ? ' on' : '');
-    fav.setAttribute('aria-label', 'Toggle favorite');
+    fav.setAttribute('aria-label', tUI2('favToggle'));
     fav.setAttribute('aria-pressed', isFav(val) ? 'true' : 'false');
     fav.innerHTML = FAV_HEART;
     fav.addEventListener('click', function(){
@@ -1199,9 +1477,9 @@
     certCards.innerHTML = '';
     certPickNote.textContent = '';
     if(!list.length){
-      certPickNote.textContent = filtered ? 'No certificates match your search.'
-        : favMode ? 'No favorites yet — tap the heart on a certificate to add it here.'
-        : 'No certificates available.';
+      certPickNote.textContent = filtered ? tUI2('noMatch')
+        : favMode ? tUI2('noFav')
+        : tUI2('noCerts');
       return;
     }
     list.forEach(function(c){
@@ -1232,13 +1510,13 @@
 
   function ensureCerts(){
     if(certsCache){ applyCertFilter(); return; }
-    certPickNote.textContent = 'Loading certificates…';
+    certPickNote.textContent = tUI2('loadingCerts');
     getJSON('/api/certs').then(function(list){
       certsCache = list || [];
       applyCertFilter();
     }).catch(function(){
       certCards.innerHTML = '';
-      certPickNote.textContent = 'Could not load certificates. Close and try again.';
+      certPickNote.textContent = tUI2('certsError');
     });
   }
 
@@ -1261,7 +1539,7 @@
     dead = false;
     certSearch.value = '';
     signAppNamePick.textContent = ipaLabel;
-    titleEl.textContent = 'Choose certificate';
+    titleEl.textContent = tUI2('chooseCert');
     signBack.hidden = true;
     certPickPane.hidden = false;
     signProgressPane.hidden = true;
@@ -1286,7 +1564,7 @@
   function finish(plistUrl, gen){
     if(gen !== signGen || dead) return; // flow was cancelled — don't touch the UI
     mark('install', 'done');
-    note('Signed with "' + currentCertLabel + '".');
+    note(tUI2('signedWith', {cert: currentCertLabel}));
     var itms = 'itms-services://?action=download-manifest&url=' + encodeURIComponent(plistUrl);
     installBtn.setAttribute('href', itms);
     retryBtn.hidden = true;
@@ -1309,7 +1587,7 @@
   function simulateSign(plistUrl){
     var gen = signGen;
     mark('request', 'active');
-    note('Preparing to sign (ubuntu-latest)…');
+    note(tUI2('notePreparing'));
     after(1000, function(){
       mark('request', 'done');
       mark('sign', 'active');
@@ -1318,9 +1596,9 @@
          across the stages. */
       var signMs = 8000;
       var stages = [
-        'Queued on GitHub Actions runner (ubuntu-latest)…',
-        'Building zsign from source…',
-        'Signing ' + currentIpaLabel + ' with zsign…'
+        tUI2('stageQueued'),
+        tUI2('stageBuild'),
+        tUI2('stageSigning', {app: currentIpaLabel})
       ];
       var per = signMs / stages.length;
       var si = 0;
@@ -1329,11 +1607,11 @@
         if(si >= stages.length){
           mark('sign', 'done');
           mark('manifest', 'active');
-          note('Publishing install manifest…');
+          note(tUI2('noteManifest'));
           after(1000, function(){
             mark('manifest', 'done');
             mark('install', 'active');
-            note('Ready to install — ' + currentIpaLabel + '.ipa…');
+            note(tUI2('noteReady', {app: currentIpaLabel}));
             after(1000, function(){
               finish(plistUrl, gen);
             });
@@ -1353,7 +1631,7 @@
     pollTimer = setTimeout(function(){
       if(gen !== signGen || dead) return;
       if(Date.now() - startedAt > MAX_WAIT_MS){
-        fail('Timed out waiting for the sign job (30 min). Please try again.');
+        fail(tUI2('noteTimeout'));
         return;
       }
       var ctl = new AbortController();
@@ -1361,26 +1639,26 @@
       getJSON('/api/sign-status?cert=' + encodeURIComponent(currentCert) + '&ipa=' + encodeURIComponent(currentIpa), ctl.signal).then(function(res){
         if(gen !== signGen || dead) return;
         if(res.state === 'running'){
-          note('Signing ' + currentIpaLabel + ' with zsign… (' + elapsed() + ' elapsed)');
+          note(tUI2('noteSigningElapsed', {app: currentIpaLabel, elapsed: elapsed()}));
           poll();
         } else if(res.state === 'finishing'){
           mark('manifest', 'active');
-          note('Sign finished — publishing the install manifest…');
+          note(tUI2('noteFinishing'));
           poll();
         } else if(res.state === 'complete'){
           mark('sign', 'done');
           mark('manifest', 'done');
           finish(res.plistUrl, gen);
         } else if(res.state === 'failed'){
-          fail(res.error || 'The sign job failed. Try again or pick another certificate.');
+          fail(res.error || tUI2('signFailed'));
         } else {
-          note('Waiting for the sign job to start…');
+          note(tUI2('noteWaiting'));
           poll();
         }
       }).catch(function(err){
         if(gen !== signGen || dead) return;
         if(err && err.name === 'AbortError') return; // cancelled — stay silent
-        note('Connection hiccup — retrying…');
+        note(tUI2('noteHiccup'));
         poll();
       });
     }, POLL_MS);
@@ -1407,7 +1685,7 @@
     signProgressPane.hidden = false;
     signBack.hidden = false;
     mark('request', 'active');
-    note('Preparing to sign (ubuntu-latest)…');
+    note(tUI2('notePreparing'));
     postJSON('/api/sign', { cert: cert, ipa: ipaId }, signAbort.signal).then(function(res){
       if(gen !== signGen || dead) return;
       if(res.error) throw new Error(res.error);
@@ -1419,27 +1697,46 @@
         mark('request', 'done');
         mark('sign', 'done');
         mark('manifest', 'active');
-        note('Signed build found — publishing the install manifest…');
+        note(tUI2('noteReused'));
         poll();
       } else if(res.state === 'running'){
         mark('request', 'done');
         mark('sign', 'active');
-        note('A sign job for this app + certificate is already running — waiting for it…');
+        note(tUI2('noteAlready'));
         poll();
       } else if(res.state === 'started'){
         mark('request', 'done');
         mark('sign', 'active');
-        note('GitHub Actions — signing ' + ipaLabel + '…');
+        note(tUI2('noteStarted', {app: ipaLabel}));
         poll();
       } else {
-        throw new Error('Unexpected response from the server.');
+        throw new Error(tUI2('unexpected'));
       }
     }).catch(function(err){
       if(gen !== signGen || dead) return;
       if(err && err.name === 'AbortError') return; // user cancelled — stay silent
-      fail(err && err.message ? err.message : 'Could not start the sign job.');
+      fail(err && err.message ? err.message : tUI2('startFailed'));
     });
   }
+
+  /* Steps 2 and 4 embed the app name in a nested <b>, so they are
+     rebuilt from templates instead of data-i18n; the rebuilt spans keep
+     their ids, and the element refs are re-grabbed afterwards. */
+  function localizeSteps(){
+    var liS = stepsEl.querySelector('li[data-step="sign"]');
+    var liI = stepsEl.querySelector('li[data-step="install"]');
+    var app = currentIpaLabel || tUI2('theApp');
+    if(liS && liS.lastElementChild) liS.lastElementChild.innerHTML = tUI2('stepSignTpl', {app: app});
+    if(liI && liI.lastElementChild) liI.lastElementChild.innerHTML = tUI2('stepInstallTpl', {app: app});
+    appEl = document.getElementById('signAppName');
+    installAppEl = document.getElementById('signInstallAppName');
+  }
+  localizeSteps();
+  window.addEventListener('si-lang-change', function(){
+    localizeSteps();
+    if(!certPickPane.hidden) titleEl.textContent = tUI2('chooseCert');
+    if(certsCache) applyCertFilter();
+  });
 
   document.addEventListener('click', function(e){
     var b = e.target.closest ? e.target.closest('button[data-ipa]') : null;
