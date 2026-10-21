@@ -1079,20 +1079,18 @@
     return (m > 0 ? m + 'm ' : '') + (s % 60) + 's';
   }
 
-  /* Safari chrome color while the sign modal is open: #000a25 (the dimmed
-     page color around the modal), back to the page blue #011a5c on close.
-     Measured on the user's iOS 17.4 (screen recordings): the STATUS bar
-     follows theme-color live (normal direction), so the static meta stays
-     #011a5c and the swap below darkens it only while the modal is open.
-     The BOTTOM address bar does not follow theme-color; it follows the
-     page canvas colors (body/html/.bg) — and with the mapping INVERTED:
-     commit 98fcb49 applied #000a25 to them on open and the bar turned
-     blue, while at rest (blue canvas) the bar was dark. So the canvas
-     channels get the opposite assignment (blue on open, dark on close)
-     to land the bar dark while the modal is open and blue at rest;
-     body/html colors are invisible (the opaque .bg layer covers the
-     canvas), and .bg keeps the v1 assignment (dark on open so the
-     dimmed surround stays near-black, cleared on close). */
+  /* Safari chrome color while the sign modal is open: everything syncs to
+     #00025a (page background, status bar, bottom address bar); on close it
+     all returns to the page blue #011a5c. Measured on the user's iOS 17.4
+     across three screen recordings: the STATUS bar follows theme-color
+     live (normal direction) and the BOTTOM bar follows the body/html
+     canvas color (also normal direction — an inverted-assignment build
+     produced a blue bar in the modal and a dark bar at rest, exactly
+     backwards). So on open, theme-color AND body/html/.bg all get the
+     dark color; on close, theme-color returns to blue and the canvas
+     inline colors are cleared back to the stylesheet blue. body/html
+     colors are invisible on the page itself (the opaque .bg layer covers
+     the canvas); .bg dark on open also deepens the dimmed surround. */
   var metaTheme = document.getElementById('metaTheme');
   var bgEl = document.querySelector('.bg');
   function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
@@ -1100,10 +1098,10 @@
   function openModal(){
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
-    setThemeColor('#000a25');
-    if(bgEl) bgEl.style.backgroundColor = '#000a25';
-    document.body.style.backgroundColor = '#011a5c';
-    document.documentElement.style.backgroundColor = '#011a5c';
+    setThemeColor('#00025a');
+    if(bgEl) bgEl.style.backgroundColor = '#00025a';
+    document.body.style.backgroundColor = '#00025a';
+    document.documentElement.style.backgroundColor = '#00025a';
   }
   /* Stop everything the current sign flow is doing: bump the generation so
      late timers / fetch callbacks from the old flow ignore themselves,
@@ -1122,8 +1120,8 @@
     document.body.style.overflow = '';
     setThemeColor('#011a5c');
     if(bgEl) bgEl.style.backgroundColor = '';
-    document.body.style.backgroundColor = '#000a25';
-    document.documentElement.style.backgroundColor = '#000a25';
+    document.body.style.backgroundColor = '';
+    document.documentElement.style.backgroundColor = '';
   }
 
   /* ---- certificate picker pane ---- */
