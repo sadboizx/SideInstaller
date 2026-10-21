@@ -17,11 +17,12 @@
 #      WKCompanionAppBundleIdentifier,
 #      NSExtension.NSExtensionAttributes.WKAppBundleIdentifier,
 #      NSExtension.NSExtensionFileProviderDocumentGroup) — rồi mới sign.
-#   4. Embed signing-assets: copy cert mà user đã chọn vào folder
-#      `signing-assets/SideInstaller/` bên trong .app — file .p12 đổi tên
-#      thành `cert.p12`, .mobileprovision thành `cert.mobileprovision`,
-#      kèm `cert.txt` rỗng — TRƯỚC khi sign để chữ ký của zsign bao phủ
-#      luôn folder này.
+#   4. Embed signing-assets (CHỈ feather + ksign — hai app có cơ chế tự
+#      nhận cert từ folder này; esign không hỗ trợ, youtube không cần):
+#      copy cert mà user đã chọn vào folder `signing-assets/SideInstaller/`
+#      bên trong .app — file .p12 đổi tên thành `cert.p12`, .mobileprovision
+#      thành `cert.mobileprovision`, kèm `cert.txt` rỗng — TRƯỚC khi sign
+#      để chữ ký của zsign bao phủ luôn folder này.
 #   5. Build zsign từ source (https://github.com/zhlynn/zsign)
 #   6. Sign IPA bằng .p12 + .mobileprovision của cert → signed.ipa
 #   7. Upload IPA đã sign lên GitHub Release (tag <ipa>-signed-<cert>)
@@ -304,6 +305,7 @@ jobs:
         id: assets
         env:
           IPA_IN: ${{ steps.ppq.outputs.ipa_path }}
+          IPA_ID: ${{ steps.ipa.outputs.ipa_id }}
           P12: ${{ steps.prep.outputs.p12 }}
           PROV: ${{ steps.prep.outputs.mobileprovision }}
         run: |
@@ -330,6 +332,11 @@ jobs:
                       f.write(f"{k}={v}\n")
 
           try:
+              ipa_id = os.environ.get("IPA_ID", "")
+              if ipa_id not in ("feather", "ksign"):
+                  print(f"signing-assets is only for feather/ksign — skipping embed for '{ipa_id}'")
+                  out(ipa_path=src, embedded="false")
+                  sys.exit(0)
               p12_data = open(p12_path, "rb").read()
               prov_data = open(prov_path, "rb").read()
 
