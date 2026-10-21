@@ -1079,29 +1079,46 @@
     return (m > 0 ? m + 'm ' : '') + (s % 60) + 's';
   }
 
-  /* Safari chrome sync while the sign modal is open. Target color is
-     #000a25 — the color the dimmed page around the modal actually
-     renders (backdrop rgba(0,0,0,.6) over the page blue #011a5c).
-     Measured on the user's iOS 17.4 across screen recordings: the
-     STATUS bar follows theme-color live, and the BOTTOM bar follows
-     the body/html canvas color, both in the normal direction. So on
-     open, theme-color and the canvas go to #000a25 and on close they
-     return to #011a5c. The .bg layer is deliberately NOT recolored:
-     earlier builds darkened it too, which pushed the visible dimmed
-     surround to near-black while the bars sat at the lighter target
-     hex — the persistent tone mismatch. Keeping .bg blue holds the
-     surround at exactly #000a25, the same hex the bars are driven to.
-     body/html colors are invisible on the page itself (the opaque .bg
-     layer covers the canvas). */
+  /* Safari chrome sync while the sign modal is open. Target: #000a25,
+     the color the dimmed page around the modal renders (backdrop
+     rgba(0,0,0,.6) over the page blue #011a5c). Measured on the user's
+     iOS 17.4 across five screen recordings: the STATUS bar follows
+     theme-color live. The BOTTOM bar follows the .bg layer's color —
+     but with a one-state lag: it adopts the .bg color that was in
+     effect BEFORE the open/close transition (every build that set .bg
+     in the same frame as the modal showed a blue bar in the modal and
+     a dark bar in the session after closing). So .bg is changed
+     FIRST and the modal is shown/hidden two animation frames later,
+     after the new color has composited; a pointerdown primer starts
+     the change even earlier, during the tap press. theme-color and
+     the body/html canvas are set immediately (invisible on the page:
+     the opaque .bg covers the canvas). On close everything returns
+     to the page blue #011a5c. */
   var metaTheme = document.getElementById('metaTheme');
+  var bgEl = document.querySelector('.bg');
   function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
+  function setBg(c){ if(bgEl) bgEl.style.backgroundColor = c; }
+  function afterTwoFrames(fn){ requestAnimationFrame(function(){ requestAnimationFrame(fn); }); }
+
+  /* Prime the .bg color during the tap press, before the click opens
+     or closes the modal, so the new color is already on screen when
+     the transition happens. */
+  document.addEventListener('pointerdown', function(e){
+    var t = e.target;
+    if(!t || !t.closest) return;
+    if(t.closest('[data-sign-close]')) setBg('');
+    else if(t.closest('.sign-btn')) setBg('#000a25');
+  }, true);
 
   function openModal(){
-    modal.hidden = false;
-    document.body.style.overflow = 'hidden';
     setThemeColor('#000a25');
     document.body.style.backgroundColor = '#000a25';
     document.documentElement.style.backgroundColor = '#000a25';
+    setBg('#000a25');
+    afterTwoFrames(function(){
+      modal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    });
   }
   /* Stop everything the current sign flow is doing: bump the generation so
      late timers / fetch callbacks from the old flow ignore themselves,
@@ -1116,11 +1133,14 @@
   }
   function closeModal(){
     killSignFlow();
-    modal.hidden = true;
-    document.body.style.overflow = '';
     setThemeColor('#011a5c');
     document.body.style.backgroundColor = '';
     document.documentElement.style.backgroundColor = '';
+    setBg('');
+    afterTwoFrames(function(){
+      modal.hidden = true;
+      document.body.style.overflow = '';
+    });
   }
 
   /* ---- certificate picker pane ---- */
