@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" href="app-icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" id="metaTheme" content="#000a25">
+<meta name="theme-color" id="metaTheme" content="#011a5c">
 <style>
   /* Palette mirrors the app's brand blues: accent #2170F5 -> accent2 #4DADFF.
      The page sits on one flat deep navy (--page), the same tone the brand glow
@@ -1079,12 +1079,13 @@
     return (m > 0 ? m + 'm ' : '') + (s % 60) + 's';
   }
 
-  /* Safari chrome color: while the sign modal is open the status bar and
-     bottom address bar should be #000a25 (the dimmed page color around the
-     modal). Note: iOS 17 reads theme-color once at page load for the bottom
-     bar — live JS changes do not retint it (verified on device) — so the
-     meta tag itself carries #000a25; the JS swap below covers browsers
-     that do retint live. */
+  /* Safari chrome color while the sign modal is open: #000a25 (the dimmed
+     page color around the modal), back to the page blue #011a5c on close.
+     Measured on the user's iOS 17.4 (screen recordings): the STATUS bar
+     follows theme-color live, so the static value must stay #011a5c and
+     only the JS swap below darkens it while the modal is open. The BOTTOM
+     address bar does not follow theme-color at all (static or live) — its
+     tint is fixed from the page background at load. */
   var metaTheme = document.getElementById('metaTheme');
   function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
 
