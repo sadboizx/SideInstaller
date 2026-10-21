@@ -1091,12 +1091,16 @@
   /* While the sign modal is open, sync the browser chrome (status bar and
      bottom bar) to the dimmed page background around the modal:
      rgba(0,0,0,.6) over the page blue #011a5c ≈ #000a25.
-     Safari 26 ignores the theme-color meta for its Liquid Glass bars — it
-     samples the BODY element's background-color instead (this page's body
-     is transparent by design, so it fell back to the page blue). Setting
-     body/html background-color while the modal is open is what actually
-     re-tints the bars; theme-color is kept in sync for older Safari. */
+     Safari 26 ignores theme-color for its Liquid Glass bars. Its tinting
+     samples position:fixed elements at the viewport edges and reads the
+     background-color on the element itself — on this page that is the .bg
+     layer (fixed, full-screen, page blue); the modal backdrop is absolute
+     and gets skipped, and body/html backgrounds are only a fallback that
+     never applies while .bg qualifies. So: recolor .bg while the modal is
+     open (it sits under the modal's dark backdrop, so the page itself
+     looks unchanged) and keep body/html/theme-color in sync as fallback. */
   var metaTheme = document.getElementById('metaTheme');
+  var bgEl = document.querySelector('.bg');
   var PAGE_THEME = '#011a5c', MODAL_THEME = '#000a25';
   function setThemeColor(c){ if(metaTheme) metaTheme.setAttribute('content', c); }
 
@@ -1104,6 +1108,7 @@
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     setThemeColor(MODAL_THEME);
+    if(bgEl) bgEl.style.backgroundColor = MODAL_THEME;
     document.body.style.backgroundColor = MODAL_THEME;
     document.documentElement.style.backgroundColor = MODAL_THEME;
   }
@@ -1125,6 +1130,7 @@
     modal.hidden = true;
     document.body.style.overflow = '';
     setThemeColor(PAGE_THEME);
+    if(bgEl) bgEl.style.backgroundColor = '';
     document.body.style.backgroundColor = '';
     document.documentElement.style.backgroundColor = '';
   }
