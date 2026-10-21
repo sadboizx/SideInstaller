@@ -469,9 +469,11 @@
   }
   .theme-btn:hover{background:var(--card-hover); border-color:var(--stroke-strong)}
   .theme-btn svg{width:17px; height:17px}
-  .theme-btn .ic-sun{display:none}
-  html[data-theme="light"] .theme-btn .ic-sun{display:block}
-  html[data-theme="light"] .theme-btn .ic-moon{display:none}
+  /* The button shows the theme you will switch TO: sun while dark
+     (tap for light), moon while light (tap for dark). */
+  .theme-btn .ic-moon{display:none}
+  html[data-theme="light"] .theme-btn .ic-moon{display:block}
+  html[data-theme="light"] .theme-btn .ic-sun{display:none}
 
   /* ---- light theme: same variables, light values ---- */
   html[data-theme="light"]{
