@@ -1080,7 +1080,7 @@
   }
 
   /* Safari chrome color while the sign modal is open: everything syncs to
-     #00025a (page background, status bar, bottom address bar); on close it
+     #000a25 (page background, status bar, bottom address bar); on close it
      all returns to the page blue #011a5c. Measured on the user's iOS 17.4
      across three screen recordings: the STATUS bar follows theme-color
      live (normal direction) and the BOTTOM bar follows the body/html
@@ -1098,10 +1098,10 @@
   function openModal(){
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
-    setThemeColor('#00025a');
-    if(bgEl) bgEl.style.backgroundColor = '#00025a';
-    document.body.style.backgroundColor = '#00025a';
-    document.documentElement.style.backgroundColor = '#00025a';
+    setThemeColor('#000a25');
+    if(bgEl) bgEl.style.backgroundColor = '#000a25';
+    document.body.style.backgroundColor = '#000a25';
+    document.documentElement.style.backgroundColor = '#000a25';
   }
   /* Stop everything the current sign flow is doing: bump the generation so
      late timers / fetch callbacks from the old flow ignore themselves,
